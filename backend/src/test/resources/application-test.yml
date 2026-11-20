@@ -1,0 +1,6 @@
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/pegacer_test}
+  flyway:
+    locations: classpath:db/migration,classpath:db/demo
+    clean-disabled: false

@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: pegacer-db
+    environment:
+      POSTGRES_USER: pegacer
+      POSTGRES_PASSWORD: pegacer
+      POSTGRES_DB: pegacer
+    ports:
+      - "5432:5432"
+    volumes:
+      - pegacer-data:/var/lib/postgresql/data
+      - ./database/init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql:ro
+volumes:
+  pegacer-data:

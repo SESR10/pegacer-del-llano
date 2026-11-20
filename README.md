@@ -2,8 +2,10 @@
 
 Aplicación web para controlar materias primas, cochadas, producción, producto terminado, compras, desperdicios, alertas y reportes de la fábrica.
 
-> **Estado actual: Fases 1 y 2 terminadas** (estructura del proyecto + base de datos completa con datos DEMO).
-> El frontend tiene el diseño base, menú responsive y Dashboard de estado del sistema. Los módulos se construyen en las fases siguientes.
+> **Estado actual: Fases 1, 2 y 5 terminadas** (estructura, base de datos con datos DEMO y frontend base).
+> El frontend ya muestra en modo demostración el Dashboard, Cochadas, Producción, Fórmulas, Inventario con kardex,
+> Producto terminado, Compras, Proveedores, Desperdicios y Alertas. Las pantallas leen una foto de los datos DEMO
+> mientras se construyen los endpoints de negocio (Fases 3–14).
 
 ## Tecnología
 
@@ -63,6 +65,19 @@ npm run dev
 
 Abrir http://localhost:5173 (las llamadas a `/api` se redirigen al backend).
 
+Versión de demostración, sin backend (para mostrar al cliente):
+
+```bash
+cd frontend
+npm run build:demo   # genera frontend/dist/
+```
+
+Para refrescar la foto de datos DEMO que usa el frontend:
+
+```bash
+psql -d pegacer -qAt -f database/scripts/exportar-demo-json.sql > frontend/src/demo/demo-data.json
+```
+
 ## Variables de entorno (backend)
 
 | Variable | Por defecto | Descripción |
@@ -75,7 +90,7 @@ Abrir http://localhost:5173 (las llamadas a `/api` se redirigen al backend).
 | `CORS_ORIGINS` | `http://localhost:5173` | Orígenes permitidos del frontend (separados por coma) |
 | `PORT` | `8080` | Puerto del backend |
 
-Frontend: `VITE_API_URL` (vacío en desarrollo).
+Frontend: `VITE_API_URL` (vacío en desarrollo) y `VITE_DEMO_ONLY=true` para la compilación de demostración.
 
 ## Usuarios demo
 
@@ -92,7 +107,7 @@ Contraseña de todos: **`Demo2026*`** (el login se habilita en la Fase 4).
 ## Datos DEMO
 
 Todo lo cargado por el perfil `demo` está marcado con `is_demo = TRUE` y los proveedores llevan "DEMO" en el nombre y NIT. Incluye:
-6 productos, la fórmula de referencia informada por la empresa (3 bultos de cemento, 0,51 m³ de arena, 1,8 kg de químico, 47 bolsas → 45–47 bolsas), ~36 cochadas de los últimos 30 días, compras, despachos, desperdicios y alertas.
+6 productos, la fórmula de referencia informada por la empresa (3 bultos de cemento, 0,51 m³ de arena, 1,8 kg de químico, 45–47 bolsas de 25 kg), ~35 cochadas de los últimos 30 días, compras, despachos, desperdicios y alertas reales derivadas de los datos (cemento en stock crítico, pegante premium agotado, consumos fuera de rango y producción baja).
 **No se cargan costos** ni fórmula para el pegante premium: la empresa debe ingresarlos.
 
 ## Arquitectura
@@ -138,6 +153,7 @@ Cubren: endpoint de salud, protección de endpoints con mensaje claro, Swagger, 
 | 2 | Base de datos | ✅ |
 | 3 | Backend (entidades, repositorios, servicios) | ⏳ |
 | 4 | Autenticación JWT y roles | ⏳ |
-| 5 | Frontend base | 🟡 layout listo |
-| 6–14 | Dashboard, Productos, Inventario, Fórmulas, Cochadas, Producción, Compras, Alertas, Reportes | ⏳ |
+| 5 | Frontend base | ✅ |
+| 6–13 | Dashboard, Productos, Inventario, Fórmulas, Cochadas, Producción, Compras, Alertas | 🟡 pantallas en modo demo; faltan API y formularios |
+| 14 | Reportes | ⏳ |
 | 15–16 | Responsive final y pruebas | ⏳ |
