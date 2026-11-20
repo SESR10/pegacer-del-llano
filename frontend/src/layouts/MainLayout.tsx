@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { LuMenu, LuLogOut } from 'react-icons/lu';
 import { ALL_ITEMS, NAV } from './nav';
+import { LOGIN_REQUIRED, useAuth } from '../services/auth';
 
 export default function MainLayout() {
   const [open, setOpen] = useState(false);
+  const { user, logout } = useAuth();
   const { pathname } = useLocation();
   const current = ALL_ITEMS.find((i) => i.path === pathname) ?? ALL_ITEMS[0];
 
@@ -33,7 +35,12 @@ export default function MainLayout() {
             </div>
           ))}
         </nav>
-        <div className="sidebar-foot"><LuLogOut /> Cerrar sesión</div>
+        {user && <div className="user-box"><strong>{user.fullName}</strong>{user.roleName}</div>}
+        <div className="sidebar-foot">
+          {LOGIN_REQUIRED
+            ? <button type="button" onClick={logout}><LuLogOut /> Cerrar sesión</button>
+            : <><LuLogOut /> Demostración sin sesión</>}
+        </div>
       </aside>
       <div className="backdrop" onClick={() => setOpen(false)} />
       <div className="main">

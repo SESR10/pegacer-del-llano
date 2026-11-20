@@ -1,0 +1,375 @@
+package co.pegacer.sistema;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.persistence.EntityManager;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+/**
+ * Pruebas de las Fases 3 y 4: login, permisos por rol, productos, kardex, alertas y auditoría.
+ * Cada prueba corre en una transacción que se deshace al final, así no se afectan entre sí.
+ */
+@SpringBootTest
+@AutoConfigureMockMvc
+@ActiveProfiles({"demo", "test"})
+@Import(TestDatabaseConfig.class)
+@Transactional
+class ApiIntegrationTests {
+    static final String PASSWORD = "Demo2026*";
+
+    @Autowired MockMvc mvc;
+    @Autowired ObjectMapper json;
+    @Autowired JdbcTemplate jdbc;
+    @Autowired EntityManager em;
+
+    /** Las pruebas leen con SQL directo: primero se envían a la base los cambios pendientes de JPA. */
+    <T> T q(String sql, Class<T> type, Object... args) {
+        em.flush();
+        return jdbc.queryForObject(sql, type, args);
+    }
+
+    void u(String sql, Object... args) {
+        em.flush();
+        jdbc.update(sql, args);
+        em.clear();
+    }
+
+    String token(String username) throws Exception {
+        String body = mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"" + username + "\",\"password\":\"" + PASSWORD + "\"}"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        return json.readTree(body).at("/data/token").asText();
+    }
+
+    MockHttpServletRequestBuilder as(String user, MockHttpServletRequestBuilder req) throws Exception {
+        return req.header("Authorization", "Bearer " + token(user)).contentType(MediaType.APPLICATION_JSON);
+    }
+
+    long productId(String code) {
+        return q("SELECT id FROM products WHERE code = ?", Long.class, code);
+    }
+
+    BigDecimal stock(String code) {
+        return q("SELECT stock FROM products WHERE code = ?", BigDecimal.class, code);
+    }
+
+    // ---------- Fase 4: autenticación ----------
+
+    @Test
+    void loginReturnsTokenAndUser() throws Exception {
+        mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"ADMIN\",\"password\":\"" + PASSWORD + "\"}"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.success").value(true))
+           .andExpect(jsonPath("$.data.token").isNotEmpty())
+           .andExpect(jsonPath("$.data.user.role").value("ADMIN"))
+           .andExpect(jsonPath("$.data.user.passwordHash").doesNotExist());
+        assertThat(q("SELECT count(*) FROM audit_log WHERE action = 'INICIO_SESION'", Integer.class)).isPositive();
+    }
+
+    @Test
+    void wrongPasswordAndUnknownUserGiveSameMessage() throws Exception {
+        for (String body : new String[]{"{\"username\":\"admin\",\"password\":\"mala\"}",
+                                        "{\"username\":\"nadie\",\"password\":\"mala\"}"}) {
+            mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(body))
+               .andExpect(status().isUnauthorized())
+               .andExpect(jsonPath("$.success").value(false))
+               .andExpect(jsonPath("$.message").value("Usuario o contraseña incorrectos."));
+        }
+    }
+
+    @Test
+    void emptyLoginIsValidated() throws Exception {
+        mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content("{\"username\":\"\",\"password\":\"\"}"))
+           .andExpect(status().isBadRequest())
+           .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    void invalidTokenIsRejected() throws Exception {
+        mvc.perform(get("/api/products").header("Authorization", "Bearer token-falso"))
+           .andExpect(status().isUnauthorized())
+           .andExpect(jsonPath("$.message").value("Debe iniciar sesión para continuar."));
+    }
+
+    @Test
+    void meReturnsSessionUser() throws Exception {
+        mvc.perform(as("produccion", get("/api/auth/me")))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.data.username").value("produccion"))
+           .andExpect(jsonPath("$.data.role").value("PRODUCCION"));
+    }
+
+    @Test
+    void inactiveUserCannotLoginNorUseOldToken() throws Exception {
+        String t = token("compras");
+        u("UPDATE users SET active = FALSE WHERE username = 'compras'");
+        mvc.perform(get("/api/products").header("Authorization", "Bearer " + t)).andExpect(status().isUnauthorized());
+        mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"compras\",\"password\":\"" + PASSWORD + "\"}"))
+           .andExpect(status().isUnauthorized());
+    }
+
+    // ---------- Permisos por rol ----------
+
+    @Test
+    void everyRoleCanRead() throws Exception {
+        for (String user : new String[]{"admin", "produccion", "inventario", "compras", "gerencia"}) {
+            String t = token(user);
+            for (String url : new String[]{"/api/products", "/api/inventory", "/api/inventory/movements", "/api/formulas",
+                    "/api/batches", "/api/purchases", "/api/dispatches", "/api/waste", "/api/suppliers", "/api/alerts",
+                    "/api/catalogs", "/api/settings"}) {
+                mvc.perform(get(url).header("Authorization", "Bearer " + t)).andExpect(status().isOk());
+            }
+        }
+    }
+
+    @Test
+    void gerenciaIsReadOnly() throws Exception {
+        mvc.perform(as("gerencia", post("/api/products")).content(newProduct("PT-X1")))
+           .andExpect(status().isForbidden())
+           .andExpect(jsonPath("$.message").value("No tiene permisos para esta acción."));
+        mvc.perform(as("gerencia", post("/api/inventory/movements"))
+                        .content(adjust(productId("MP-ARE"), "AJUSTE_POS", "1")))
+           .andExpect(status().isForbidden());
+        mvc.perform(as("gerencia", post("/api/suppliers")).content("{\"nit\":\"1\",\"name\":\"X\"}"))
+           .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void onlyAdminManagesUsers() throws Exception {
+        mvc.perform(as("inventario", get("/api/users"))).andExpect(status().isForbidden());
+        mvc.perform(as("admin", get("/api/users"))).andExpect(status().isOk())
+           .andExpect(jsonPath("$.data.length()").value(5));
+        mvc.perform(as("admin", post("/api/users")).content("""
+                {"username":"carlos","fullName":"Carlos Pérez","role":"PRODUCCION","password":"Clave2026!"}"""))
+           .andExpect(status().isCreated())
+           .andExpect(jsonPath("$.data.role").value("PRODUCCION"));
+        String hash = q("SELECT password_hash FROM users WHERE username = 'carlos'", String.class);
+        assertThat(hash).startsWith("$2").doesNotContain("Clave2026!");
+    }
+
+    @Test
+    void userWithoutValidRoleIsRejected() throws Exception {
+        mvc.perform(as("admin", post("/api/users")).content("""
+                {"username":"sinrol","fullName":"Sin Rol","role":"JEFE","password":"Clave2026!"}"""))
+           .andExpect(status().isBadRequest())
+           .andExpect(jsonPath("$.message").value("El rol JEFE no existe."));
+    }
+
+    @Test
+    void comprasManagesSuppliersButNotProducts() throws Exception {
+        mvc.perform(as("compras", post("/api/suppliers")).content("""
+                {"nit":"900123456","name":"Cementos Nuevos S.A.S.","city":"Villavicencio"}"""))
+           .andExpect(status().isCreated());
+        mvc.perform(as("compras", post("/api/products")).content(newProduct("PT-X2"))).andExpect(status().isForbidden());
+    }
+
+    // ---------- Fase 3: productos ----------
+
+    @Test
+    void createEditAndDeleteProduct() throws Exception {
+        String body = mvc.perform(as("inventario", post("/api/products")).content(newProduct("pt-nuevo")))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.code").value("PT-NUEVO"))
+                .andExpect(jsonPath("$.data.stock").value(10))
+                .andReturn().getResponse().getContentAsString();
+        long id = json.readTree(body).at("/data/id").asLong();
+        // Stock inicial queda en el kardex
+        assertThat(q("SELECT count(*) FROM inventory_movements WHERE product_id = ? AND movement_type = 'INICIAL'",
+                Integer.class, id)).isEqualTo(1);
+
+        mvc.perform(as("inventario", put("/api/products/" + id)).content("""
+                {"code":"PT-NUEVO","name":"Pegante renombrado","category":"PRODUCTO_TERMINADO","unit":"BOLSA","minStock":5}"""))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.data.name").value("Pegante renombrado"));
+
+        // Tiene historial: se desactiva en vez de borrarse
+        mvc.perform(as("inventario", delete("/api/products/" + id))).andExpect(status().isOk());
+        assertThat(q("SELECT active FROM products WHERE id = ?", Boolean.class, id)).isFalse();
+        assertThat(q("SELECT count(*) FROM audit_log WHERE entity = 'product' AND entity_id = ?",
+                Integer.class, id)).isEqualTo(3);
+    }
+
+    @Test
+    void productWithoutHistoryIsReallyDeleted() throws Exception {
+        String body = mvc.perform(as("admin", post("/api/products")).content("""
+                {"code":"IN-TMP","name":"Temporal","category":"INSUMO","unit":"UND","minStock":3}"""))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        long id = json.readTree(body).at("/data/id").asLong();
+        mvc.perform(as("admin", delete("/api/products/" + id))).andExpect(status().isOk())
+           .andExpect(jsonPath("$.message").value("Producto eliminado."));
+        assertThat(q("SELECT count(*) FROM products WHERE id = ?", Integer.class, id)).isZero();
+    }
+
+    @Test
+    void productValidations() throws Exception {
+        mvc.perform(as("admin", post("/api/products")).content(newProduct("MP-CEM")))
+           .andExpect(status().isConflict())
+           .andExpect(jsonPath("$.message").value("Ya existe un producto con el código MP-CEM."));
+        mvc.perform(as("admin", post("/api/products")).content("""
+                {"code":"X-1","name":"Sin unidad","category":"INSUMO","unit":"","minStock":1}"""))
+           .andExpect(status().isBadRequest())
+           .andExpect(jsonPath("$.message").value("La unidad de medida es obligatoria."));
+        mvc.perform(as("admin", post("/api/products")).content("""
+                {"code":"X-2","name":"Negativo","category":"INSUMO","unit":"UND","minStock":-1}"""))
+           .andExpect(status().isBadRequest())
+           .andExpect(jsonPath("$.message").value("El stock mínimo no puede ser negativo."));
+    }
+
+    @Test
+    void productListFiltersByCategory() throws Exception {
+        mvc.perform(as("gerencia", get("/api/products?category=PRODUCTO_TERMINADO")))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.data.length()").value(2))
+           .andExpect(jsonPath("$.data[0].category").value("PRODUCTO_TERMINADO"));
+    }
+
+    // ---------- Fase 3: inventario / kardex ----------
+
+    @Test
+    void adjustmentUpdatesStockAndKardex() throws Exception {
+        BigDecimal before = stock("MP-QUI");
+        mvc.perform(as("inventario", post("/api/inventory/movements"))
+                        .content(adjust(productId("MP-QUI"), "AJUSTE_POS", "4.5")))
+           .andExpect(status().isCreated())
+           .andExpect(jsonPath("$.data.stockBefore").value(before.doubleValue()))
+           .andExpect(jsonPath("$.data.stockAfter").value(before.add(new BigDecimal("4.5")).doubleValue()))
+           .andExpect(jsonPath("$.data.user").value("Auxiliar de Inventario DEMO"));
+        assertThat(stock("MP-QUI")).isEqualByComparingTo(before.add(new BigDecimal("4.5")));
+        assertThat(q("SELECT count(*) FROM audit_log WHERE action = 'AJUSTE_INVENTARIO'", Integer.class)).isEqualTo(1);
+    }
+
+    @Test
+    void insufficientStockIsRejectedWithClearMessage() throws Exception {
+        BigDecimal before = stock("MP-CEM");
+        mvc.perform(as("inventario", post("/api/inventory/movements"))
+                        .content(adjust(productId("MP-CEM"), "AJUSTE_NEG", before.add(BigDecimal.ONE).toPlainString())))
+           .andExpect(status().isBadRequest())
+           .andExpect(jsonPath("$.success").value(false))
+           .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.startsWith("No hay suficiente cemento gris uso general")));
+        assertThat(stock("MP-CEM")).isEqualByComparingTo(before);
+    }
+
+    @Test
+    void manualMovementOnlyAllowsAdjustments() throws Exception {
+        mvc.perform(as("inventario", post("/api/inventory/movements"))
+                        .content(adjust(productId("MP-ARE"), "PRODUCCION", "1")))
+           .andExpect(status().isBadRequest());
+        mvc.perform(as("inventario", post("/api/inventory/movements"))
+                        .content(adjust(productId("MP-ARE"), "AJUSTE_POS", "0")))
+           .andExpect(status().isBadRequest())
+           .andExpect(jsonPath("$.message").value("La cantidad debe ser mayor que cero."));
+    }
+
+    @Test
+    void stockAlertIsCreatedAndClosedAutomatically() throws Exception {
+        long id = productId("MP-ARE");
+        BigDecimal s = stock("MP-ARE");
+        BigDecimal min = q("SELECT min_stock FROM products WHERE id = ?", BigDecimal.class, id);
+        u("UPDATE alerts SET resolved = TRUE WHERE product_id = ?", id);
+        // Bajar hasta 1 por debajo del mínimo -> alerta de stock crítico
+        BigDecimal down = s.subtract(min).add(BigDecimal.ONE);
+        mvc.perform(as("inventario", post("/api/inventory/movements")).content(adjust(id, "AJUSTE_NEG", down.toPlainString())))
+           .andExpect(status().isCreated());
+        assertThat(q("SELECT count(*) FROM alerts WHERE product_id = ? AND NOT resolved AND alert_type = 'STOCK_CRITICO'",
+                Integer.class, id)).isEqualTo(1);
+        // Reponer -> la alerta se cierra sola
+        mvc.perform(as("inventario", post("/api/inventory/movements")).content(adjust(id, "AJUSTE_POS", "10")))
+           .andExpect(status().isCreated());
+        assertThat(q("SELECT count(*) FROM alerts WHERE product_id = ? AND NOT resolved", Integer.class, id)).isZero();
+    }
+
+    @Test
+    void kardexStillBalancesAfterApiMovements() throws Exception {
+        mvc.perform(as("admin", post("/api/inventory/movements")).content(adjust(productId("IN-BOL"), "AJUSTE_NEG", "7")))
+           .andExpect(status().isCreated());
+        Integer mismatches = q("""
+            SELECT count(*) FROM products p WHERE p.stock <> COALESCE((
+              SELECT sum(CASE WHEN m.movement_type IN ('ENTRADA_COMPRA','PRODUCCION','AJUSTE_POS','INICIAL')
+                              THEN m.quantity ELSE -m.quantity END)
+              FROM inventory_movements m WHERE m.product_id = p.id), 0)""", Integer.class);
+        assertThat(mismatches).isZero();
+    }
+
+    @Test
+    void kardexFiltersByProductAndType() throws Exception {
+        long id = productId("PT-PEG");
+        mvc.perform(as("gerencia", get("/api/inventory/movements?productId=" + id + "&type=PRODUCCION&size=5")))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.data.content.length()").value(5))
+           .andExpect(jsonPath("$.data.content[0].type").value("PRODUCCION"))
+           .andExpect(jsonPath("$.data.content[0].productCode").value("PT-PEG"));
+    }
+
+    // ---------- Fase 3: consultas ----------
+
+    @Test
+    void batchesIncludeConsumptionsAndVariation() throws Exception {
+        String body = mvc.perform(as("produccion", get("/api/batches?size=3")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(3))
+                .andReturn().getResponse().getContentAsString();
+        JsonNode first = json.readTree(body).at("/data/content/0");
+        assertThat(first.get("consumptions").size()).isEqualTo(4);
+        assertThat(first.at("/consumptions/0/variationPct").isNumber()).isTrue();
+        mvc.perform(as("produccion", get("/api/batches/" + first.get("id").asLong())))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.data.consumptions.length()").value(4));
+    }
+
+    @Test
+    void formulaHasItsIngredients() throws Exception {
+        mvc.perform(as("produccion", get("/api/formulas")))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.data.length()").value(1))
+           .andExpect(jsonPath("$.data[0].items.length()").value(4))
+           .andExpect(jsonPath("$.data[0].minBags").value(45))
+           .andExpect(jsonPath("$.data[0].maxBags").value(47));
+    }
+
+    @Test
+    void resolvingAlertIsAudited() throws Exception {
+        long id = q("SELECT min(id) FROM alerts WHERE NOT resolved", Long.class);
+        mvc.perform(as("produccion", patch("/api/alerts/" + id + "/resolve")))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.data.resolved").value(true));
+        mvc.perform(as("gerencia", patch("/api/alerts/" + id + "/resolve"))).andExpect(status().isForbidden());
+        mvc.perform(as("admin", get("/api/audit")))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.data.content[?(@.action == 'RESOLVER_ALERTA')].user").value("produccion"));
+    }
+
+    @Test
+    void notFoundIsClear() throws Exception {
+        mvc.perform(as("admin", get("/api/products/999999")))
+           .andExpect(status().isNotFound())
+           .andExpect(jsonPath("$.message").value("El producto no existe."));
+    }
+
+    static String newProduct(String code) {
+        return "{\"code\":\"" + code + "\",\"name\":\"Pegante de prueba\",\"category\":\"PRODUCTO_TERMINADO\","
+                + "\"unit\":\"BOLSA\",\"minStock\":5,\"initialStock\":10}";
+    }
+
+    static String adjust(long productId, String type, String qty) {
+        return "{\"productId\":" + productId + ",\"type\":\"" + type + "\",\"quantity\":" + qty + ",\"notes\":\"Conteo físico\"}";
+    }
+}

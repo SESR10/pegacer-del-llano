@@ -1,4 +1,6 @@
 import { HashRouter, Route, Routes } from 'react-router-dom';
+import { AuthProvider, LOGIN_REQUIRED, useAuth } from './services/auth';
+import LoginPage from './pages/LoginPage';
 import MainLayout from './layouts/MainLayout';
 import DashboardPage from './pages/DashboardPage';
 import CochadasPage from './pages/CochadasPage';
@@ -11,6 +13,17 @@ import {
 } from './pages/ListPages';
 
 export default function App() {
+  return (
+    <AuthProvider>
+      <Gate />
+    </AuthProvider>
+  );
+}
+
+/** Sin sesión se muestra el login (excepto en la compilación de demostración, que no tiene backend). */
+function Gate() {
+  const { user } = useAuth();
+  if (LOGIN_REQUIRED && !user) return <LoginPage />;
   return (
     <HashRouter>
       <Routes>
