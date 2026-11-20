@@ -42,7 +42,9 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/api/health", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
-                .anyRequest().authenticated())
+                .requestMatchers("/api/**").authenticated()
+                // Fuera de /api solo están los archivos de la pantalla (index.html, /assets/**).
+                .anyRequest().permitAll())
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
             .exceptionHandling(e -> e
                 .authenticationEntryPoint((req, res, ex) ->
