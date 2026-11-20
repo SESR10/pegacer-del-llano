@@ -2,10 +2,11 @@
 
 Aplicación web para controlar materias primas, cochadas, producción, producto terminado, compras, desperdicios, alertas y reportes de la fábrica.
 
-> **Estado actual: Fases 1, 2 y 5 terminadas** (estructura, base de datos con datos DEMO y frontend base).
-> El frontend ya muestra en modo demostración el Dashboard, Cochadas, Producción, Fórmulas, Inventario con kardex,
-> Producto terminado, Compras, Proveedores, Desperdicios y Alertas. Las pantallas leen una foto de los datos DEMO
-> mientras se construyen los endpoints de negocio (Fases 3–14).
+> **Estado actual: Fases 1 a 5 terminadas** (estructura, base de datos con datos DEMO, backend de negocio,
+> login con roles y frontend base). Ver [docs/ESTADO.md](docs/ESTADO.md).
+> El frontend pide iniciar sesión y muestra el Dashboard, Cochadas, Producción, Fórmulas, Inventario con kardex,
+> Producto terminado, Compras, Proveedores, Desperdicios y Alertas. Las pantallas todavía leen una foto de los datos
+> DEMO; conectarlas al API y construir los formularios son las Fases 6–13.
 
 ## Tecnología
 
@@ -94,7 +95,7 @@ Frontend: `VITE_API_URL` (vacío en desarrollo) y `VITE_DEMO_ONLY=true` para la 
 
 ## Usuarios demo
 
-Contraseña de todos: **`Demo2026*`** (el login se habilita en la Fase 4).
+Contraseña de todos: **`Demo2026*`**. Cambiarlas (o desactivar estos usuarios) antes de usar el sistema con datos reales.
 
 | Usuario | Rol |
 |---|---|
@@ -109,6 +110,31 @@ Contraseña de todos: **`Demo2026*`** (el login se habilita en la Fase 4).
 Todo lo cargado por el perfil `demo` está marcado con `is_demo = TRUE` y los proveedores llevan "DEMO" en el nombre y NIT. Incluye:
 6 productos, la fórmula de referencia informada por la empresa (3 bultos de cemento, 0,51 m³ de arena, 1,8 kg de químico, 45–47 bolsas de 25 kg), ~35 cochadas de los últimos 30 días, compras, despachos, desperdicios y alertas reales derivadas de los datos (cemento en stock crítico, pegante premium agotado, consumos fuera de rango y producción baja).
 **No se cargan costos** ni fórmula para el pegante premium: la empresa debe ingresarlos.
+
+## API
+
+Todas las respuestas tienen la forma `{ "success": true|false, "message": "...", "data": ... }`.
+Para usar el API: `POST /api/auth/login` con `{"username","password"}` y enviar el token recibido en el encabezado
+`Authorization: Bearer <token>`. La lista completa con ejemplos está en Swagger (`/swagger-ui.html`).
+
+| Endpoint | Quién puede |
+|---|---|
+| `POST /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/change-password` | Público / cualquier usuario |
+| `GET /api/products`, `/api/inventory`, `/api/inventory/movements`, `/api/formulas`, `/api/batches`, `/api/purchases`, `/api/dispatches`, `/api/waste`, `/api/suppliers`, `/api/alerts`, `/api/catalogs`, `/api/settings` | Cualquier usuario |
+| `POST/PUT/DELETE /api/products` | Administrador, Inventario |
+| `POST /api/inventory/movements` (ajustes) | Administrador, Inventario |
+| `POST/PUT /api/suppliers` | Administrador, Compras |
+| `PATCH /api/alerts/{id}/resolve` | Administrador, Producción, Inventario, Compras |
+| `GET/POST/PUT /api/users`, `GET /api/audit` | Administrador |
+
+## Pruebas
+
+```bash
+cd backend
+mvn test
+```
+
+Usan la base `pegacer_test` (se crea con Docker o con el SQL de arriba) y la reinician en cada corrida.
 
 ## Arquitectura
 
