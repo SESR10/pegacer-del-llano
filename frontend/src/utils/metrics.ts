@@ -1,8 +1,10 @@
 import type { Batch, Formula, Product, Snapshot } from '../services/types';
 
 export const toleranceOf = (s: Snapshot) => Number(s.settings['consumo.tolerancia_pct'] ?? 5);
+/** Fórmula con la que se hizo la cochada; sin cochada, la fórmula activa principal. */
 export const formulaOf = (s: Snapshot, b?: Batch): Formula | undefined =>
-  (b?.formulaId && s.formulas.find((f) => f.id === b.formulaId)) || s.formulas[0];
+  (b?.formulaId && s.formulas.find((f) => f.id === b.formulaId)) || activeFormula(s);
+export const activeFormula = (s: Snapshot) => s.formulas.find((f) => f.active !== false) ?? s.formulas[0];
 
 export type StockStatus = 'AGOTADO' | 'CRITICO' | 'OK';
 export function stockStatus(p: Product): StockStatus {
