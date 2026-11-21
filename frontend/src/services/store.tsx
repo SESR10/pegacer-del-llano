@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { apiFetch, apiFetchFull } from './auth';
 import { DEMO_ONLY, demoSnapshot } from './data';
-import type { AdjustInput, Alert, Batch, BatchInput, Catalogs, Category, Formula, Movement, Product, ProductInput, Snapshot } from './types';
+import type { AdjustInput, Alert, Batch, BatchInput, Catalogs, Category, Formula, FormulaInput, Movement, Product, ProductInput, Snapshot } from './types';
 
 /**
  * Datos de la aplicación (Fase 6 en adelante).
@@ -14,7 +14,7 @@ const n = (v: unknown) => (v === null || v === undefined ? 0 : Number(v));
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const mapProduct = (p: any): Product => ({ id: p.id, code: p.code, name: p.name, category: p.category as Category, unit: p.unit, stock: n(p.stock), minStock: n(p.minStock), unitCost: p.unitCost === null || p.unitCost === undefined ? null : Number(p.unitCost) });
 const mapFormula = (f: any): Formula => ({
-  id: f.id, name: f.name, version: f.version, product: f.productName, productId: f.productId, active: f.active,
+  id: f.id, name: f.name, version: f.version, product: f.productName, productId: f.productId, active: f.active, createdAt: f.createdAt,
   expectedBags: n(f.expectedBags), minBags: n(f.minBags), maxBags: n(f.maxBags), bagWeightKg: n(f.bagWeightKg),
   items: f.items.map((i: any) => ({ productId: i.productId, quantity: n(i.quantity) })),
 });
@@ -77,6 +77,9 @@ interface Store {
   saveProduct: (input: ProductInput, id?: number) => Promise<Product>;
   deleteProduct: (id: number) => Promise<string>;
   adjust: (input: AdjustInput) => Promise<Movement>;
+  saveFormula: (input: FormulaInput) => Promise<Formula>;
+  activateFormula: (id: number) => Promise<void>;
+  updateSetting: (key: string, value: string) => Promise<void>;
 }
 
 const StoreContext = createContext<Store | null>(null);
@@ -222,8 +225,53 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return page.content.map(mapMovement);
   }, []);
 
+  const saveFormula = useCallback(async (input: FormulaInput) => {
+    if (!DEMO_ONLY) {
+      const f = mapFormula(await apiFetch('/api/formulas', { method: 'POST', body: JSON.stringify(input) }));
+      await reload();
+      return f;
+    }
+    let f!: Formula;
+    mutate((s) => {
+      const product = s.products.find((p) => p.id === input.productId)!;
+      const same = s.formulas.filter((x) => x.productId === input.productId || x.product === product.name);
+      same.forEach((x) => { x.active = false; });
+      f = { id: Math.max(0, ...s.formulas.map((x) => x.id)) + 1, name: input.name, version: Math.max(0, ...same.map((x) => x.version)) + 1,
+        product: product.name, productId: product.id, active: true, expectedBags: input.expectedBags, minBags: input.minBags,
+        maxBags: input.maxBags, bagWeightKg: input.bagWeightKg, items: input.items.map((i) => ({ ...i })) };
+      s.formulas.push(f);
+    });
+    return f;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reload]);
+
+  const activateFormula = useCallback(async (id: number) => {
+    if (!DEMO_ONLY) {
+      await apiFetch(`/api/formulas/${id}/activate`, { method: 'PATCH' });
+      await reload();
+      return;
+    }
+    mutate((s) => {
+      const f = s.formulas.find((x) => x.id === id)!;
+      s.formulas.filter((x) => x.product === f.product).forEach((x) => { x.active = x.id === id; });
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reload]);
+
+  const updateSetting = useCallback(async (key: string, value: string) => {
+    if (!DEMO_ONLY) {
+      await apiFetch(`/api/settings/${encodeURIComponent(key)}`, { method: 'PUT', body: JSON.stringify({ value }) });
+      await reload();
+      return;
+    }
+    const n = Number(value.replace(',', '.'));
+    if (!(n > 0 && n <= 50)) throw new Error('La tolerancia debe ser un número mayor que 0 y hasta 50 (%).');
+    mutate((s) => { s.settings[key] = String(n); });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reload]);
+
   return (
-    <StoreContext.Provider value={{ data, error, live: !DEMO_ONLY, reload, registerBatch, resolveAlert, kardex, catalogs, saveProduct, deleteProduct, adjust }}>
+    <StoreContext.Provider value={{ data, error, live: !DEMO_ONLY, reload, registerBatch, resolveAlert, kardex, catalogs, saveProduct, deleteProduct, adjust, saveFormula, activateFormula, updateSetting }}>
       {children}
     </StoreContext.Provider>
   );

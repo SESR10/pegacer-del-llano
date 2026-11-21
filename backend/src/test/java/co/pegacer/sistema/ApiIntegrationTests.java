@@ -461,6 +461,92 @@ class ApiIntegrationTests {
            .andExpect(jsonPath("$.message").value("La fecha de la cochada no puede estar en el futuro."));
     }
 
+    // ---------- Fase 9: fórmulas ----------
+
+    String formula(String name, String min, String exp, String max, String cem) {
+        return "{\"productId\":" + productId("PT-PEG") + ",\"name\":\"" + name + "\",\"expectedBags\":" + exp
+                + ",\"minBags\":" + min + ",\"maxBags\":" + max + ",\"bagWeightKg\":25,\"items\":["
+                + "{\"productId\":" + productId("MP-CEM") + ",\"quantity\":" + cem + "},"
+                + "{\"productId\":" + productId("MP-ARE") + ",\"quantity\":0.5},"
+                + "{\"productId\":" + productId("MP-QUI") + ",\"quantity\":1.8},"
+                + "{\"productId\":" + productId("IN-BOL") + ",\"quantity\":47}]}";
+    }
+
+    @Test
+    void editingFormulaCreatesNewVersionAndKeepsHistory() throws Exception {
+        long oldId = formulaId();
+        String body = mvc.perform(as("produccion", post("/api/formulas")).content(formula("Fórmula estándar v2", "44", "46", "48", "3.1")))
+           .andExpect(status().isCreated())
+           .andExpect(jsonPath("$.data.version").value(2))
+           .andExpect(jsonPath("$.data.active").value(true))
+           .andExpect(jsonPath("$.data.items.length()").value(4))
+           .andReturn().getResponse().getContentAsString();
+        long newId = json.readTree(body).at("/data/id").asLong();
+        assertThat(q("SELECT active FROM formulas WHERE id = ?", Boolean.class, oldId)).isFalse();
+        assertThat(q("SELECT count(*) FROM batches WHERE formula_id = ?", Integer.class, oldId)).isGreaterThan(0);
+        assertThat(q("SELECT count(*) FROM audit_log WHERE action = 'NUEVA_VERSION_FORMULA'", Integer.class)).isEqualTo(1);
+        // La cochada nueva usa la versión 2; la anterior ya no se puede usar
+        mvc.perform(as("produccion", post("/api/batches")).content(batch("46", "3.1", "0.5", "1.8", "47").replace(
+                        "\"formulaId\":" + oldId, "\"formulaId\":" + newId)))
+           .andExpect(status().isCreated())
+           .andExpect(jsonPath("$.data.inRange").value(true))
+           .andExpect(jsonPath("$.data.consumptions[0].variationPct").value(0));
+        mvc.perform(as("produccion", post("/api/batches")).content(batch("46", "3", "0.51", "1.8", "47")))
+           .andExpect(status().isBadRequest());
+        // Volver a la versión 1
+        mvc.perform(as("admin", patch("/api/formulas/" + oldId + "/activate")))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.data.active").value(true));
+        assertThat(q("SELECT active FROM formulas WHERE id = ?", Boolean.class, newId)).isFalse();
+    }
+
+    @Test
+    void formulaValidationsAndPermissions() throws Exception {
+        mvc.perform(as("inventario", post("/api/formulas")).content(formula("X", "44", "46", "48", "3")))
+           .andExpect(status().isForbidden());
+        mvc.perform(as("produccion", post("/api/formulas")).content(formula("X", "48", "46", "44", "3")))
+           .andExpect(status().isBadRequest())
+           .andExpect(jsonPath("$.message").value("El mínimo de bolsas no puede ser mayor que el máximo."));
+        mvc.perform(as("produccion", post("/api/formulas")).content(formula("X", "44", "50", "48", "3")))
+           .andExpect(status().isBadRequest())
+           .andExpect(jsonPath("$.message").value("Las bolsas esperadas deben estar entre el mínimo y el máximo."));
+        mvc.perform(as("produccion", post("/api/formulas")).content(formula("X", "44", "46", "48", "0")))
+           .andExpect(status().isBadRequest())
+           .andExpect(jsonPath("$.message").value("La cantidad de cada material debe ser mayor que cero."));
+        String forRaw = formula("X", "44", "46", "48", "3").replace("\"productId\":" + productId("PT-PEG") + ",\"name\"",
+                "\"productId\":" + productId("MP-CEM") + ",\"name\"");
+        mvc.perform(as("produccion", post("/api/formulas")).content(forRaw))
+           .andExpect(status().isBadRequest())
+           .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.startsWith("Las fórmulas son para productos terminados.")));
+        assertThat(q("SELECT count(*) FROM formulas", Integer.class)).isEqualTo(1);
+    }
+
+    @Test
+    void premiumProductGetsItsFirstFormula() throws Exception {
+        String body = formula("Fórmula premium v1", "44", "45", "46", "3.5").replace(
+                "\"productId\":" + productId("PT-PEG") + ",\"name\"", "\"productId\":" + productId("PT-PRE") + ",\"name\"");
+        mvc.perform(as("admin", post("/api/formulas")).content(body))
+           .andExpect(status().isCreated())
+           .andExpect(jsonPath("$.data.version").value(1))
+           .andExpect(jsonPath("$.data.productName").value("Pegante para enchape premium 25 kg"));
+        assertThat(q("SELECT count(*) FROM formulas WHERE active", Integer.class)).isEqualTo(2);
+    }
+
+    @Test
+    void toleranceCanBeChangedAndIsUsedForAlerts() throws Exception {
+        mvc.perform(as("produccion", put("/api/settings/consumo.tolerancia_pct")).content("{\"value\":\"60\"}"))
+           .andExpect(status().isBadRequest());
+        mvc.perform(as("gerencia", put("/api/settings/consumo.tolerancia_pct")).content("{\"value\":\"12\"}"))
+           .andExpect(status().isForbidden());
+        mvc.perform(as("admin", put("/api/settings/consumo.tolerancia_pct")).content("{\"value\":\"12,5\"}"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.data['consumo.tolerancia_pct']").value("12.5"));
+        String body = mvc.perform(as("produccion", post("/api/batches")).content(batch("46", "3.3", "0.51", "1.8", "47")))
+           .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        long id = json.readTree(body).at("/data/id").asLong();
+        assertThat(q("SELECT count(*) FROM alerts WHERE batch_id = ?", Integer.class, id)).isZero();
+    }
+
     static String newProduct(String code) {
         return "{\"code\":\"" + code + "\",\"name\":\"Pegante de prueba\",\"category\":\"PRODUCTO_TERMINADO\","
                 + "\"unit\":\"BOLSA\",\"minStock\":5,\"initialStock\":10}";

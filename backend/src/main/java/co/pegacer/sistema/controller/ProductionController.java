@@ -3,6 +3,7 @@ package co.pegacer.sistema.controller;
 import co.pegacer.sistema.dto.*;
 import co.pegacer.sistema.security.Roles;
 import co.pegacer.sistema.service.BatchService;
+import co.pegacer.sistema.service.FormulaService;
 import co.pegacer.sistema.service.ProductionQueryService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -20,10 +21,12 @@ import java.util.List;
 public class ProductionController {
     private final ProductionQueryService q;
     private final BatchService batchService;
+    private final FormulaService formulaService;
 
-    public ProductionController(ProductionQueryService q, BatchService batchService) {
+    public ProductionController(ProductionQueryService q, BatchService batchService, FormulaService formulaService) {
         this.q = q;
         this.batchService = batchService;
+        this.formulaService = formulaService;
     }
 
     @GetMapping("/formulas")
@@ -31,6 +34,22 @@ public class ProductionController {
 
     @GetMapping("/formulas/{id}")
     public ApiResponse<FormulaDto> formula(@PathVariable Long id) { return ApiResponse.ok(q.formula(id)); }
+
+    @Operation(summary = "Nueva fórmula o nueva versión",
+            description = "Si el producto ya tiene una fórmula activa, se crea la versión siguiente y la anterior queda inactiva.")
+    @PostMapping("/formulas")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize(Roles.PRODUCCION)
+    public ApiResponse<FormulaDto> saveFormula(@Valid @RequestBody FormulaRequest req) {
+        return ApiResponse.ok("Fórmula guardada.", formulaService.save(req));
+    }
+
+    @Operation(summary = "Volver a usar una versión anterior de la fórmula")
+    @PatchMapping("/formulas/{id}/activate")
+    @PreAuthorize(Roles.PRODUCCION)
+    public ApiResponse<FormulaDto> activateFormula(@PathVariable Long id) {
+        return ApiResponse.ok("Versión activada.", formulaService.activate(id));
+    }
 
     @GetMapping("/batches")
     public ApiResponse<PageDto<BatchDto>> batches(@RequestParam(defaultValue = "0") int page,

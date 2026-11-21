@@ -41,6 +41,21 @@ public class Formula {
     @PrePersist
     void prePersist() { if (createdAt == null) createdAt = Instant.now(); }
 
+    protected Formula() { }
+
+    public Formula(Product product, String name, int version, BigDecimal expectedBags, BigDecimal minBags,
+                   BigDecimal maxBags, BigDecimal bagWeightKg) {
+        this.product = product;
+        this.name = name;
+        this.version = version;
+        this.expectedBags = expectedBags;
+        this.minBags = minBags;
+        this.maxBags = maxBags;
+        this.bagWeightKg = bagWeightKg;
+    }
+
+    public void setActive(boolean active) { this.active = active; }
+
     public Long getId() { return id; }
     public Product getProduct() { return product; }
     public String getName() { return name; }

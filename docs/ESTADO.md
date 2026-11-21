@@ -9,10 +9,11 @@
 | Frontend (Fase 5) | React + Vite + TypeScript. Diseño profesional y responsive: en el celular hay barra inferior, menú deslizable, tablas convertidas en tarjetas y formularios en hoja inferior. |
 | Pantallas conectadas (Fase 6) | Todas las pantallas leen los datos reales del servidor (inventario, kardex, fórmulas, cochadas, compras, despachos, desperdicios, proveedores, alertas). Las alertas se pueden marcar como atendidas. |
 | Registro de cochadas (Fase 10) | Formulario y endpoint `POST /api/batches`: descuenta la materia prima, suma las bolsas al producto terminado, calcula la variación frente a la fórmula y crea alertas de consumo fuera de rango y de producción baja. Código consecutivo por año (C-2026-0001). Si un material no alcanza, no se guarda nada. |
-| Pruebas | 38 pruebas automáticas (`mvn test`), todas pasan. |
+| Pruebas | 42 pruebas automáticas (`mvn test`), todas pasan. |
 | Productos (Fase 7) | Crear, editar y eliminar productos desde la pantalla Productos (roles Administrador e Inventario). Al crear se puede dar un stock inicial, que queda en el kardex. Un producto con historial se desactiva en lugar de borrarse. |
 | Inventario (Fase 8) | Ajustes de inventario (sumar o restar) con motivo obligatorio y vista previa del stock que quedará. Quedan en el kardex y en la auditoría. |
-| Otros formularios (Fases 9, 11–13) | Pendiente: edición de fórmulas, compras, despachos y desperdicios. |
+| Fórmulas (Fase 9) | Crear y editar fórmulas desde la pantalla Fórmulas (Administrador y Producción). Cada cambio se guarda como **versión nueva** y la anterior queda en el historial: las cochadas ya registradas conservan su receta. Se puede volver a una versión anterior. La tolerancia de consumo se cambia en la misma pantalla. |
+| Otros formularios (Fases 11–13) | Pendiente: compras, despachos y desperdicios. |
 
 ## Permisos por rol
 
@@ -31,10 +32,11 @@ Todos los usuarios con sesión pueden **consultar** todo. Para **modificar**:
 - **Eliminar un producto** con historial en el kardex lo **desactiva** (no lo borra) para no perder la trazabilidad.
 - **El stock nunca se edita a mano**: solo cambia con movimientos. Desde Inventario solo se registran ajustes
   (`AJUSTE_POS`/`AJUSTE_NEG`) con motivo obligatorio; compras, cochadas, despachos y desperdicios tendrán su propio formulario.
+- **Las fórmulas no se sobrescriben**: editar crea la versión siguiente (`POST /api/formulas`) y desactiva la anterior; `PATCH /api/formulas/{id}/activate` vuelve a una versión anterior.
 - Los endpoints de fórmulas se llaman `/api/formulas` (el prompt maestro los nombra `/api/recipes` como ejemplo).
 - Las pruebas reinician la base `pegacer_test` en cada corrida (no tocan la base `pegacer`).
 
 ## Siguiente paso
 
-Edición de fórmulas (Fase 9), vista de producción (Fase 11) y registro de compras (Fase 12).
+Vista de producción (Fase 11) y registro de compras (Fase 12).
 Antes de usarlo con datos reales: perfil de producción, usuarios reales y copias de seguridad de PostgreSQL.

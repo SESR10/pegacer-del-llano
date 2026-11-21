@@ -29,7 +29,7 @@ export const NAV: NavGroup[] = [
   ] },
   { title: 'Sistema', items: [
     { path: '/usuarios', label: 'Usuarios', icon: LuUsers, phase: 15 },
-    { path: '/configuracion', label: 'Configuración', icon: LuSettings, phase: 9 },
+    { path: '/configuracion', label: 'Configuración', icon: LuSettings, phase: 15 },
   ] },
 ];
 
