@@ -1,4 +1,4 @@
-# Estado del proyecto (20 de noviembre de 2026)
+# Estado del proyecto (21 de noviembre de 2026)
 
 | Parte | Estado |
 |---|---|
@@ -6,9 +6,11 @@
 | Backend base (Fase 1) | Spring Boot 3.3 + Java 21. |
 | Backend de negocio (Fase 3) | Entidades JPA de las 19 tablas, repositorios, servicios y endpoints. Productos (crear, editar, eliminar), kardex con ajustes manuales, proveedores, consultas de fórmulas, cochadas, compras, despachos, desperdicios y alertas. Alertas de stock automáticas. |
 | Login y roles (Fase 4) | Login con JWT, contraseñas con BCrypt, permisos por rol, administración de usuarios y auditoría de cada operación. Pantalla de login en el frontend. |
-| Frontend (Fase 5) | React + Vite + TypeScript. Diseño industrial responsive y 12 pantallas con datos DEMO. |
-| Pruebas | 33 pruebas automáticas (`mvn test`), todas pasan. |
-| Formularios de negocio (Fases 6–13) | Pendiente. Las pantallas todavía leen la foto de datos DEMO; el API ya está listo para conectarlas. |
+| Frontend (Fase 5) | React + Vite + TypeScript. Diseño profesional y responsive: en el celular hay barra inferior, menú deslizable, tablas convertidas en tarjetas y formularios en hoja inferior. |
+| Pantallas conectadas (Fase 6) | Todas las pantallas leen los datos reales del servidor (inventario, kardex, fórmulas, cochadas, compras, despachos, desperdicios, proveedores, alertas). Las alertas se pueden marcar como atendidas. |
+| Registro de cochadas (Fase 10) | Formulario y endpoint `POST /api/batches`: descuenta la materia prima, suma las bolsas al producto terminado, calcula la variación frente a la fórmula y crea alertas de consumo fuera de rango y de producción baja. Código consecutivo por año (C-2026-0001). Si un material no alcanza, no se guarda nada. |
+| Pruebas | 38 pruebas automáticas (`mvn test`), todas pasan. |
+| Otros formularios (Fases 7–9, 11–13) | Pendiente: productos, ajustes de inventario, fórmulas, compras, despachos y desperdicios. |
 
 ## Permisos por rol
 
@@ -32,6 +34,5 @@ Todos los usuarios con sesión pueden **consultar** todo. Para **modificar**:
 
 ## Siguiente paso
 
-Fases 6–10: conectar el Dashboard y las pantallas al API real, y construir los formularios de productos, inventario,
-fórmulas y **registro de cochadas** (descuenta materia prima, suma producto terminado y genera alertas de consumo y
-producción fuera de rango).
+Formularios de productos y ajustes de inventario (Fases 7–8), edición de fórmulas (Fase 9) y registro de compras (Fase 12).
+Antes de usarlo con datos reales: perfil de producción, usuarios reales y copias de seguridad de PostgreSQL.

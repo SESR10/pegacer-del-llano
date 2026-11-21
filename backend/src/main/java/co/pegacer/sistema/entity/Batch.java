@@ -35,6 +35,17 @@ public class Batch {
     @OrderBy("id")
     private List<BatchConsumption> consumptions = new ArrayList<>();
 
+    protected Batch() { }
+
+    public Batch(String code, Formula formula, Instant producedAt, AppUser operator, BigDecimal bagsProduced, String notes) {
+        this.code = code;
+        this.formula = formula;
+        this.producedAt = producedAt;
+        this.operator = operator;
+        this.bagsProduced = bagsProduced;
+        this.notes = notes;
+    }
+
     public Long getId() { return id; }
     public String getCode() { return code; }
     public Formula getFormula() { return formula; }

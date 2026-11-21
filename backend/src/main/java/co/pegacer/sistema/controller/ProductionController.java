@@ -1,20 +1,30 @@
 package co.pegacer.sistema.controller;
 
 import co.pegacer.sistema.dto.*;
+import co.pegacer.sistema.security.Roles;
+import co.pegacer.sistema.service.BatchService;
 import co.pegacer.sistema.service.ProductionQueryService;
+import io.swagger.v3.oas.annotations.Operation;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/** Consultas de producción y movimientos de negocio. El registro de cada uno llega en las Fases 9–12. */
+/** Producción y movimientos de negocio. Las cochadas ya se registran (Fase 10); compras y despachos llegan en sus fases. */
 @Tag(name = "Producción, compras y salidas (consulta)")
 @RestController
 @RequestMapping("/api")
 public class ProductionController {
     private final ProductionQueryService q;
+    private final BatchService batchService;
 
-    public ProductionController(ProductionQueryService q) { this.q = q; }
+    public ProductionController(ProductionQueryService q, BatchService batchService) {
+        this.q = q;
+        this.batchService = batchService;
+    }
 
     @GetMapping("/formulas")
     public ApiResponse<List<FormulaDto>> formulas() { return ApiResponse.ok(q.formulas()); }
@@ -26,6 +36,15 @@ public class ProductionController {
     public ApiResponse<PageDto<BatchDto>> batches(@RequestParam(defaultValue = "0") int page,
                                                   @RequestParam(defaultValue = "50") int size) {
         return ApiResponse.ok(q.batches(Math.max(page, 0), Pagination.size(size)));
+    }
+
+    @Operation(summary = "Registrar cochada",
+            description = "Descuenta la materia prima consumida, suma las bolsas producidas y genera alertas de consumo y producción.")
+    @PostMapping("/batches")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize(Roles.PRODUCCION)
+    public ApiResponse<BatchDto> registerBatch(@Valid @RequestBody BatchRequest req) {
+        return ApiResponse.ok("Cochada registrada.", batchService.register(req));
     }
 
     @GetMapping("/batches/{id}")

@@ -2,10 +2,9 @@ import raw from '../demo/demo-data.json';
 import type { Health, Snapshot } from './types';
 
 /**
- * Fuente de datos del frontend.
- * Mientras se construyen los endpoints de negocio (Fases 3–14) las pantallas leen una foto de los
- * datos DEMO exportada de PostgreSQL (database/scripts/exportar-demo-json.sql). Las fechas se
- * desplazan para que la última actividad quede en el día de hoy.
+ * Foto de los datos DEMO exportada de PostgreSQL (database/scripts/exportar-demo-json.sql).
+ * Solo se usa en la compilación de demostración (VITE_DEMO_ONLY), que no tiene servidor.
+ * Las fechas se desplazan para que la última actividad quede en el día de hoy.
  */
 const DATE_KEYS = new Set(['at', 'producedAt']);
 
@@ -22,7 +21,7 @@ function shiftDates(snapshot: Snapshot): Snapshot {
   return walk(snapshot) as Snapshot;
 }
 
-export const data: Snapshot = shiftDates(raw as unknown as Snapshot);
+export const demoSnapshot = (): Snapshot => shiftDates(structuredClone(raw) as unknown as Snapshot);
 
 export const DEMO_ONLY = import.meta.env.VITE_DEMO_ONLY === 'true';
 const API = import.meta.env.VITE_API_URL ?? '';
@@ -37,5 +36,3 @@ export async function fetchHealth(): Promise<Health | null> {
     return null;
   }
 }
-
-export const productById = (id: number) => data.products.find((p) => p.id === id);
