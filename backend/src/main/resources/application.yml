@@ -1,5 +1,8 @@
 server:
   port: ${PORT:8080}
+  # En Railway/Render el sistema corre detrás de un proxy HTTPS: respetar X-Forwarded-*
+  # para que Spring no tome como "otro sitio" las peticiones de su propia pantalla (CORS 403).
+  forward-headers-strategy: framework
   error:
     include-message: never
     include-stacktrace: never

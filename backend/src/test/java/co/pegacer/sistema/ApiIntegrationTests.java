@@ -72,6 +72,19 @@ class ApiIntegrationTests {
 
     // ---------- Fase 4: autenticación ----------
 
+    /** Publicado detrás de un proxy HTTPS (Railway): la pantalla y el API comparten dirección. */
+    @Test
+    void loginWorksBehindHttpsProxy() throws Exception {
+        mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .with(r -> { r.setServerName("pegacer.up.railway.app"); r.setServerPort(8080); return r; })
+                        .header("Origin", "https://pegacer.up.railway.app")
+                        .header("X-Forwarded-Proto", "https")
+                        .header("X-Forwarded-Host", "pegacer.up.railway.app")
+                        .content("{\"username\":\"admin\",\"password\":\"" + PASSWORD + "\"}"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.success").value(true));
+    }
+
     @Test
     void loginReturnsTokenAndUser() throws Exception {
         mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
