@@ -48,8 +48,9 @@ export function productionByDay(batches: Batch[], days = 30) {
 }
 
 /** Permisos de la pantalla: iguales a los del servidor (security/Roles.java). Sin sesión (demostración) se permite todo. */
-export const can = (role: string | undefined, action: 'cochadas' | 'alertas') => {
+export const can = (role: string | undefined, action: 'cochadas' | 'alertas' | 'inventario') => {
   if (!role) return true;
   if (action === 'cochadas') return ['ADMIN', 'PRODUCCION'].includes(role);
+  if (action === 'inventario') return ['ADMIN', 'INVENTARIO'].includes(role);
   return ['ADMIN', 'INVENTARIO', 'PRODUCCION', 'COMPRAS'].includes(role);
 };

@@ -34,6 +34,11 @@ function save(s: Session | null) {
 
 /** fetch con el token y el formato {success, message, data} del API. Lanza Error con el mensaje del servidor. */
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+  return (await apiFetchFull<T>(path, init)).data;
+}
+
+/** Igual que apiFetch, pero devuelve también el mensaje del servidor (ej: "Producto eliminado."). */
+export async function apiFetchFull<T>(path: string, init: RequestInit = {}): Promise<{ data: T; message: string | null }> {
   const session = load();
   const headers = new Headers(init.headers);
   if (init.body) headers.set('Content-Type', 'application/json');
@@ -50,7 +55,7 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
     window.dispatchEvent(new Event('pegacer:logout'));
   }
   if (!res.ok || !body?.success) throw new Error(body?.message ?? 'Ocurrió un error inesperado.');
-  return body.data as T;
+  return { data: body.data as T, message: body.message ?? null };
 }
 
 interface AuthState {

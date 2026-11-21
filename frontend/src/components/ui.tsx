@@ -83,6 +83,8 @@ export interface Column<T> {
   primary?: boolean;
   hideSm?: boolean;
   width?: number | string;
+  /** Botón de la fila: en el celular va en la esquina de la tarjeta. */
+  action?: boolean;
 }
 
 export function Table<T>({ columns, rows: all, rowKey, onRowClick, selectedKey, empty = 'No hay registros.', pageSize }: {
@@ -106,7 +108,7 @@ export function Table<T>({ columns, rows: all, rowKey, onRowClick, selectedKey, 
                   tabIndex={onRowClick ? 0 : undefined}
                   onKeyDown={onRowClick ? (e) => { if (e.key === 'Enter') onRowClick(r); } : undefined}>
                 {columns.map((c) => (
-                  <td key={c.key} data-label={c.label} className={`${c.num ? 'num' : ''}${c.primary ? ' primary' : ''}${c.hideSm ? ' hide-sm' : ''}`}>{c.render(r)}</td>
+                  <td key={c.key} data-label={c.label} className={`${c.num ? 'num' : ''}${c.primary ? ' primary' : ''}${c.hideSm ? ' hide-sm' : ''}${c.action ? ' action' : ''}`}>{c.render(r)}</td>
                 ))}
               </tr>
             );

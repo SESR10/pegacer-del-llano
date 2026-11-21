@@ -112,5 +112,5 @@ export function ProduccionPage() {
   );
 }
 
-export const ProductosPage = () => <InventarioPage title="Productos" subtitle="Catálogo de materias primas, insumos y productos terminados." />;
+export const ProductosPage = () => <InventarioPage catalog title="Productos" subtitle="Catálogo de materias primas, insumos y productos terminados. Cree, edite o elimine productos aquí." />;
 export const MateriasPrimasPage = () => <InventarioPage only={['MATERIA_PRIMA', 'INSUMO']} title="Materias primas" subtitle="Cemento, arena, químicos y empaques disponibles." />;

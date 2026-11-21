@@ -1,6 +1,6 @@
 export type Category = 'MATERIA_PRIMA' | 'INSUMO' | 'PRODUCTO_TERMINADO';
 
-export interface Product { id: number; code: string; name: string; category: Category; unit: string; stock: number; minStock: number; }
+export interface Product { id: number; code: string; name: string; category: Category; unit: string; stock: number; minStock: number; unitCost?: number | null; }
 export interface FormulaItem { productId: number; quantity: number; }
 export interface Formula {
   id: number; name: string; version: number; product: string; productId?: number; active?: boolean;
@@ -42,3 +42,14 @@ export interface BatchInput {
   notes?: string;
   consumptions: { productId: number; realQty: number }[];
 }
+
+/** Crear o editar un producto (POST/PUT /api/products). El stock solo cambia con movimientos. */
+export interface ProductInput {
+  code: string; name: string; category: Category; unit: string; minStock: number; unitCost?: number | null; initialStock?: number;
+}
+
+/** Ajuste manual de inventario (POST /api/inventory/movements). */
+export interface AdjustInput { productId: number; type: 'AJUSTE_POS' | 'AJUSTE_NEG'; quantity: number; notes: string; }
+
+export interface CatalogItem { code: string; name: string; }
+export interface Catalogs { categories: CatalogItem[]; units: CatalogItem[]; }

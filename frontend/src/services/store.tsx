@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { apiFetch } from './auth';
+import { apiFetch, apiFetchFull } from './auth';
 import { DEMO_ONLY, demoSnapshot } from './data';
-import type { Alert, Batch, BatchInput, Category, Formula, Movement, Product, Snapshot } from './types';
+import type { AdjustInput, Alert, Batch, BatchInput, Catalogs, Category, Formula, Movement, Product, ProductInput, Snapshot } from './types';
 
 /**
  * Datos de la aplicación (Fase 6 en adelante).
@@ -12,7 +12,7 @@ interface Page<T> { content: T[] }
 const n = (v: unknown) => (v === null || v === undefined ? 0 : Number(v));
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-const mapProduct = (p: any): Product => ({ id: p.id, code: p.code, name: p.name, category: p.category as Category, unit: p.unit, stock: n(p.stock), minStock: n(p.minStock) });
+const mapProduct = (p: any): Product => ({ id: p.id, code: p.code, name: p.name, category: p.category as Category, unit: p.unit, stock: n(p.stock), minStock: n(p.minStock), unitCost: p.unitCost === null || p.unitCost === undefined ? null : Number(p.unitCost) });
 const mapFormula = (f: any): Formula => ({
   id: f.id, name: f.name, version: f.version, product: f.productName, productId: f.productId, active: f.active,
   expectedBags: n(f.expectedBags), minBags: n(f.minBags), maxBags: n(f.maxBags), bagWeightKg: n(f.bagWeightKg),
@@ -59,6 +59,12 @@ async function loadLive(): Promise<Snapshot> {
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
+/** Catálogos fijos de la base (V1__esquema_inicial.sql), para la demostración sin servidor. */
+const DEMO_CATALOGS: Catalogs = {
+  categories: [{ code: 'MATERIA_PRIMA', name: 'Materia prima' }, { code: 'INSUMO', name: 'Insumo' }, { code: 'PRODUCTO_TERMINADO', name: 'Producto terminado' }],
+  units: [{ code: 'BULTO', name: 'Bulto' }, { code: 'M3', name: 'Metro cúbico' }, { code: 'KG', name: 'Kilogramo' }, { code: 'UND', name: 'Unidad' }, { code: 'BOLSA', name: 'Bolsa 25 kg' }],
+};
+
 interface Store {
   data: Snapshot | null;
   error: string | null;
@@ -67,6 +73,10 @@ interface Store {
   registerBatch: (input: BatchInput) => Promise<Batch>;
   resolveAlert: (id: number) => Promise<void>;
   kardex: (productId: number) => Promise<Movement[]>;
+  catalogs: Catalogs;
+  saveProduct: (input: ProductInput, id?: number) => Promise<Product>;
+  deleteProduct: (id: number) => Promise<string>;
+  adjust: (input: AdjustInput) => Promise<Movement>;
 }
 
 const StoreContext = createContext<Store | null>(null);
@@ -74,6 +84,7 @@ const StoreContext = createContext<Store | null>(null);
 export function DataProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<Snapshot | null>(() => (DEMO_ONLY ? demoSnapshot() : null));
   const [error, setError] = useState<string | null>(null);
+  const [catalogs, setCatalogs] = useState<Catalogs>(DEMO_CATALOGS);
   const current = useRef(data);
   current.current = data;
 
@@ -88,6 +99,83 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => { reload(); }, [reload]);
+  useEffect(() => {
+    if (!DEMO_ONLY) apiFetch<Catalogs>('/api/catalogs').then((c) => setCatalogs({ categories: c.categories, units: c.units })).catch(() => {});
+  }, []);
+
+  /** Demostración: aplica un cambio a una copia de los datos y la guarda. */
+  const mutate = (fn: (s: Snapshot) => void) => {
+    if (!current.current) throw new Error('Los datos todavía se están cargando.');
+    const s = structuredClone(current.current);
+    fn(s);
+    current.current = s;
+    setData(s);
+  };
+  const demoMove = (s: Snapshot, productId: number, type: string, quantity: number, notes: string | null) => {
+    const p = s.products.find((x) => x.id === productId)!;
+    const entry = ['INICIAL', 'ENTRADA_COMPRA', 'PRODUCCION', 'AJUSTE_POS'].includes(type);
+    const after = entry ? p.stock + quantity : p.stock - quantity;
+    if (after < 0) throw new Error(`No hay suficiente ${p.name.toLowerCase()}: hay ${p.stock} y se necesitan ${quantity}.`);
+    const m: Movement = { id: Math.max(0, ...s.movements.map((x) => x.id)) + 1, productId, type, quantity, before: p.stock, after,
+      refType: type.startsWith('AJUSTE') ? 'AJUSTE' : null, at: new Date().toISOString(), user: 'Usuario DEMO', notes };
+    p.stock = after;
+    s.movements.push(m);
+    return m;
+  };
+
+  const saveProduct = useCallback(async (input: ProductInput, id?: number) => {
+    if (!DEMO_ONLY) {
+      const saved = mapProduct(await apiFetch(id ? `/api/products/${id}` : '/api/products', { method: id ? 'PUT' : 'POST', body: JSON.stringify(input) }));
+      await reload();
+      return saved;
+    }
+    let saved!: Product;
+    mutate((s) => {
+      const code = input.code.trim().toUpperCase();
+      if (id) {
+        const p = s.products.find((x) => x.id === id)!;
+        Object.assign(p, { name: input.name.trim(), category: input.category, unit: input.unit, minStock: input.minStock, unitCost: input.unitCost ?? null });
+        saved = p;
+      } else {
+        if (s.products.some((x) => x.code.toUpperCase() === code)) throw new Error(`Ya existe un producto con el código ${code}.`);
+        saved = { id: Math.max(0, ...s.products.map((x) => x.id)) + 1, code, name: input.name.trim(), category: input.category, unit: input.unit,
+          stock: 0, minStock: input.minStock, unitCost: input.unitCost ?? null };
+        s.products.push(saved);
+        if (input.initialStock) demoMove(s, saved.id, 'INICIAL', input.initialStock, 'Saldo inicial al crear el producto');
+      }
+    });
+    return saved;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reload]);
+
+  const deleteProduct = useCallback(async (id: number) => {
+    if (!DEMO_ONLY) {
+      const { message } = await apiFetchFull<null>(`/api/products/${id}`, { method: 'DELETE' });
+      await reload();
+      return message ?? 'Producto eliminado.';
+    }
+    let msg = 'Producto eliminado.';
+    mutate((s) => {
+      if (s.movements.some((m) => m.productId === id) || s.products.find((p) => p.id === id)!.stock > 0) {
+        msg = 'El producto tiene historial de inventario, así que se desactivó en lugar de borrarse.';
+      }
+      s.products = s.products.filter((p) => p.id !== id);
+    });
+    return msg;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reload]);
+
+  const adjust = useCallback(async (input: AdjustInput) => {
+    if (!DEMO_ONLY) {
+      const m = mapMovement(await apiFetch('/api/inventory/movements', { method: 'POST', body: JSON.stringify(input) }));
+      await reload();
+      return m;
+    }
+    let m!: Movement;
+    mutate((s) => { m = demoMove(s, input.productId, input.type, input.quantity, input.notes); });
+    return m;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reload]);
 
   const registerBatch = useCallback(async (input: BatchInput) => {
     if (!DEMO_ONLY) {
@@ -135,7 +223,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <StoreContext.Provider value={{ data, error, live: !DEMO_ONLY, reload, registerBatch, resolveAlert, kardex }}>
+    <StoreContext.Provider value={{ data, error, live: !DEMO_ONLY, reload, registerBatch, resolveAlert, kardex, catalogs, saveProduct, deleteProduct, adjust }}>
       {children}
     </StoreContext.Provider>
   );
