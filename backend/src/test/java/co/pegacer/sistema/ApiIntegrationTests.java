@@ -377,6 +377,90 @@ class ApiIntegrationTests {
            .andExpect(jsonPath("$.message").value("El producto no existe."));
     }
 
+    // ---------- Fase 10: registro de cochadas ----------
+
+    long formulaId() { return q("SELECT id FROM formulas ORDER BY id LIMIT 1", Long.class); }
+
+    String batch(String bags, String cem, String are, String qui, String bol) {
+        return "{\"formulaId\":" + formulaId() + ",\"bagsProduced\":" + bags + ",\"notes\":\"Turno mañana\",\"consumptions\":["
+                + "{\"productId\":" + productId("MP-CEM") + ",\"realQty\":" + cem + "},"
+                + "{\"productId\":" + productId("MP-ARE") + ",\"realQty\":" + are + "},"
+                + "{\"productId\":" + productId("MP-QUI") + ",\"realQty\":" + qui + "},"
+                + "{\"productId\":" + productId("IN-BOL") + ",\"realQty\":" + bol + "}]}";
+    }
+
+    @Test
+    void registerBatchMovesInventoryAndKardex() throws Exception {
+        BigDecimal cem = stock("MP-CEM"), bol = stock("IN-BOL"), pt = stock("PT-PEG");
+        String body = mvc.perform(as("produccion", post("/api/batches")).content(batch("46", "3", "0.51", "1.8", "46")))
+           .andExpect(status().isCreated())
+           .andExpect(jsonPath("$.message").value("Cochada registrada."))
+           .andExpect(jsonPath("$.data.code").value(org.hamcrest.Matchers.matchesPattern("C-\\d{4}-0001")))
+           .andExpect(jsonPath("$.data.inRange").value(true))
+           .andExpect(jsonPath("$.data.operator").value("Jefe de Producción DEMO"))
+           .andExpect(jsonPath("$.data.consumptions.length()").value(4))
+           .andExpect(jsonPath("$.data.consumptions[3].variationPct").value(-2.13))
+           .andReturn().getResponse().getContentAsString();
+        long id = json.readTree(body).at("/data/id").asLong();
+        assertThat(stock("MP-CEM")).isEqualByComparingTo(cem.subtract(new BigDecimal("3")));
+        assertThat(stock("IN-BOL")).isEqualByComparingTo(bol.subtract(new BigDecimal("46")));
+        assertThat(stock("PT-PEG")).isEqualByComparingTo(pt.add(new BigDecimal("46")));
+        assertThat(q("SELECT count(*) FROM inventory_movements WHERE reference_type = 'COCHADA' AND reference_id = ?",
+                Integer.class, id)).isEqualTo(5);
+        assertThat(q("SELECT count(*) FROM alerts WHERE batch_id = ?", Integer.class, id)).isZero();
+        assertThat(q("SELECT count(*) FROM audit_log WHERE action = 'REGISTRAR_COCHADA' AND entity_id = ?",
+                Integer.class, id)).isEqualTo(1);
+        // El siguiente código es consecutivo
+        mvc.perform(as("admin", post("/api/batches")).content(batch("45", "3", "0.51", "1.8", "45")))
+           .andExpect(status().isCreated())
+           .andExpect(jsonPath("$.data.code").value(org.hamcrest.Matchers.endsWith("-0002")));
+    }
+
+    @Test
+    void batchOutOfRangeCreatesAlerts() throws Exception {
+        String body = mvc.perform(as("produccion", post("/api/batches")).content(batch("43", "3.3", "0.51", "1.8", "47")))
+           .andExpect(status().isCreated())
+           .andExpect(jsonPath("$.data.inRange").value(false))
+           .andReturn().getResponse().getContentAsString();
+        long id = json.readTree(body).at("/data/id").asLong();
+        assertThat(q("SELECT count(*) FROM alerts WHERE batch_id = ? AND alert_type = 'CONSUMO_FUERA_RANGO'", Integer.class, id)).isEqualTo(1);
+        assertThat(q("SELECT message FROM alerts WHERE batch_id = ? AND alert_type = 'CONSUMO_FUERA_RANGO'", String.class, id))
+                .contains("Cemento gris uso general 10.00 % sobre la fórmula");
+        assertThat(q("SELECT message FROM alerts WHERE batch_id = ? AND alert_type = 'PRODUCCION_BAJA'", String.class, id))
+                .endsWith("produjo 43 bolsas (mínimo esperado 45).");
+    }
+
+    @Test
+    void batchWithoutEnoughStockSavesNothing() throws Exception {
+        BigDecimal cem = stock("MP-CEM"), pt = stock("PT-PEG");
+        int before = q("SELECT count(*) FROM batches", Integer.class);
+        mvc.perform(as("produccion", post("/api/batches"))
+                        .content(batch("46", cem.add(BigDecimal.ONE).toPlainString(), "0.51", "1.8", "46")))
+           .andExpect(status().isBadRequest())
+           .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.startsWith("No hay suficiente cemento gris uso general")));
+        assertThat(q("SELECT count(*) FROM batches", Integer.class)).isEqualTo(before);
+        assertThat(stock("PT-PEG")).isEqualByComparingTo(pt);
+        assertThat(stock("MP-CEM")).isEqualByComparingTo(cem);
+    }
+
+    @Test
+    void batchValidationsAndPermissions() throws Exception {
+        mvc.perform(as("inventario", post("/api/batches")).content(batch("46", "3", "0.51", "1.8", "46")))
+           .andExpect(status().isForbidden());
+        mvc.perform(as("produccion", post("/api/batches")).content(batch("0", "3", "0.51", "1.8", "46")))
+           .andExpect(status().isBadRequest())
+           .andExpect(jsonPath("$.message").value("Las bolsas producidas deben ser mayores que cero."));
+        String missing = "{\"formulaId\":" + formulaId() + ",\"bagsProduced\":46,\"consumptions\":["
+                + "{\"productId\":" + productId("MP-CEM") + ",\"realQty\":3}]}";
+        mvc.perform(as("produccion", post("/api/batches")).content(missing))
+           .andExpect(status().isBadRequest())
+           .andExpect(jsonPath("$.message").value("Falta el consumo real de arena lavada."));
+        String future = batch("46", "3", "0.51", "1.8", "46").replace("\"notes\"", "\"producedAt\":\"2999-01-01T00:00:00Z\",\"notes\"");
+        mvc.perform(as("produccion", post("/api/batches")).content(future))
+           .andExpect(status().isBadRequest())
+           .andExpect(jsonPath("$.message").value("La fecha de la cochada no puede estar en el futuro."));
+    }
+
     static String newProduct(String code) {
         return "{\"code\":\"" + code + "\",\"name\":\"Pegante de prueba\",\"category\":\"PRODUCTO_TERMINADO\","
                 + "\"unit\":\"BOLSA\",\"minStock\":5,\"initialStock\":10}";

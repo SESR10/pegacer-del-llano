@@ -1,5 +1,7 @@
 import { HashRouter, Route, Routes } from 'react-router-dom';
 import { AuthProvider, LOGIN_REQUIRED, useAuth } from './services/auth';
+import { DataProvider } from './services/store';
+import { ToastProvider } from './components/ui';
 import LoginPage from './pages/LoginPage';
 import MainLayout from './layouts/MainLayout';
 import DashboardPage from './pages/DashboardPage';
@@ -25,6 +27,8 @@ function Gate() {
   const { user } = useAuth();
   if (LOGIN_REQUIRED && !user) return <LoginPage />;
   return (
+    <DataProvider key={user?.id ?? 'demo'}>
+    <ToastProvider>
     <HashRouter>
       <Routes>
         <Route element={<MainLayout />}>
@@ -44,5 +48,7 @@ function Gate() {
         </Route>
       </Routes>
     </HashRouter>
+    </ToastProvider>
+    </DataProvider>
   );
 }

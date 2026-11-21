@@ -1,63 +1,71 @@
-import { useState } from 'react';
-import { data } from '../services/data';
-import type { Category } from '../services/types';
-import { PageHead, StockBar, StockChip } from '../components/ui';
+import { useEffect, useState } from 'react';
+import { useData, useStore } from '../services/store';
+import type { Category, Movement, Product } from '../services/types';
+import { Card, PageHead, Segmented, Spinner, StockBar, StockChip, Table, type Column } from '../components/ui';
 import { dateTime, isEntry, MOVEMENT_LABEL, num, unit } from '../utils/format';
 import { stockStatus } from '../utils/metrics';
 
 const CAT_LABEL: Record<Category, string> = { MATERIA_PRIMA: 'Materia prima', INSUMO: 'Insumo', PRODUCTO_TERMINADO: 'Producto terminado' };
 
 export default function InventarioPage({ only, title, subtitle }: { only?: Category[]; title?: string; subtitle?: string }) {
+  const data = useData();
   const products = data.products.filter((p) => !only || only.includes(p.category));
+  const [cat, setCat] = useState<'todos' | Category>('todos');
+  const shown = products.filter((p) => cat === 'todos' || p.category === cat);
   const [selected, setSelected] = useState(products[0]?.id);
   const product = products.find((p) => p.id === selected);
-  const kardex = data.movements.filter((m) => m.productId === selected).slice().reverse();
+  const cats = [...new Set(products.map((p) => p.category))];
+
+  const columns: Column<Product>[] = [
+    { key: 'name', label: 'Producto', primary: true, render: (p) => <div><div className="strong">{p.name}</div><div className="muted small mono">{p.code}</div></div> },
+    { key: 'cat', label: 'Tipo', hideSm: true, render: (p) => CAT_LABEL[p.category] },
+    { key: 'stock', label: 'Stock', num: true, render: (p) => <>{num(p.stock)} <span className="muted">{unit(p.unit)}</span></> },
+    { key: 'min', label: 'Mínimo', num: true, hideSm: true, render: (p) => num(p.minStock) },
+    { key: 'bar', label: 'Nivel', hideSm: true, width: 150, render: (p) => <StockBar stock={p.stock} min={p.minStock} /> },
+    { key: 'status', label: 'Estado', render: (p) => <StockChip status={stockStatus(p)} /> },
+  ];
 
   return (
     <>
-      <PageHead title={title ?? 'Inventario'} subtitle={subtitle ?? 'Existencias actuales y kardex de cada producto. Cada movimiento guarda el stock antes y después.'} />
-      <div className="card">
-        <div className="table-wrap">
-          <table>
-            <thead><tr><th>Código</th><th>Producto</th><th className="hide-sm">Tipo</th><th className="num">Stock</th><th className="num hide-sm">Mínimo</th><th className="hide-sm" style={{ width: 160 }}>Nivel</th><th>Estado</th></tr></thead>
-            <tbody>
-              {products.map((p) => (
-                <tr key={p.id} className={`clickable${p.id === selected ? ' selected' : ''}`} onClick={() => setSelected(p.id)}>
-                  <td style={{ fontFamily: 'var(--mono)' }}>{p.code}</td>
-                  <td>{p.name}</td>
-                  <td className="hide-sm">{CAT_LABEL[p.category]}</td>
-                  <td className="num">{num(p.stock)} <span className="kpi-sub">{unit(p.unit)}</span></td>
-                  <td className="num hide-sm">{num(p.minStock)}</td>
-                  <td className="hide-sm"><StockBar stock={p.stock} min={p.minStock} /></td>
-                  <td><StockChip status={stockStatus(p)} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      {product && (
-        <div className="card mt">
-          <h3>Kardex · {product.name} <span className="kpi-sub">{kardex.length} movimientos</span></h3>
-          <div className="table-wrap">
-            <table>
-              <thead><tr><th>Fecha</th><th>Movimiento</th><th className="num">Cantidad</th><th className="num hide-sm">Antes</th><th className="num">Después</th></tr></thead>
-              <tbody>
-                {kardex.slice(0, 40).map((m) => (
-                  <tr key={m.id}>
-                    <td>{dateTime(m.at)}</td>
-                    <td>{MOVEMENT_LABEL[m.type] ?? m.type}</td>
-                    <td className="num" style={{ color: isEntry(m.type) ? 'var(--green)' : 'var(--red)' }}>{isEntry(m.type) ? '+' : '−'}{num(m.quantity, 3)}</td>
-                    <td className="num hide-sm">{num(m.before, 3)}</td>
-                    <td className="num">{num(m.after, 3)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {!kardex.length && <div className="empty">Este producto no tiene movimientos.</div>}
-          </div>
+      <PageHead title={title ?? 'Inventario'} subtitle={subtitle ?? 'Existencias actuales y kardex de cada producto. Toque un producto para ver sus movimientos.'} />
+      {cats.length > 1 && (
+        <div className="toolbar">
+          <Segmented value={cat} onChange={setCat} options={[{ value: 'todos', label: 'Todos', count: products.length },
+            ...cats.map((c) => ({ value: c, label: CAT_LABEL[c], count: products.filter((p) => p.category === c).length }))]} />
         </div>
       )}
+      <Card flush className={cats.length > 1 ? 'mt-sm' : ''}>
+        <Table columns={columns} rows={shown} rowKey={(p) => p.id} onRowClick={(p) => setSelected(p.id)} selectedKey={selected} />
+      </Card>
+      {product && <Kardex product={product} />}
     </>
+  );
+}
+
+function Kardex({ product }: { product: Product }) {
+  const { kardex, data } = useStore();
+  const [rows, setRows] = useState<Movement[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    setRows(null); setError(null);
+    kardex(product.id).then((r) => alive && setRows(r)).catch((e) => alive && setError((e as Error).message));
+    return () => { alive = false; };
+  }, [product.id, product.stock, kardex, data]);
+
+  const columns: Column<Movement>[] = [
+    { key: 'type', label: 'Movimiento', primary: true, render: (m) => <span className="strong">{MOVEMENT_LABEL[m.type] ?? m.type}</span> },
+    { key: 'at', label: 'Fecha', render: (m) => dateTime(m.at) },
+    { key: 'qty', label: 'Cantidad', num: true, render: (m) => <span className={isEntry(m.type) ? 'pos' : 'neg'}>{isEntry(m.type) ? '+' : '−'}{num(m.quantity, 3)}</span> },
+    { key: 'before', label: 'Antes', num: true, hideSm: true, render: (m) => num(m.before, 3) },
+    { key: 'after', label: 'Después', num: true, render: (m) => num(m.after, 3) },
+  ];
+
+  return (
+    <Card className="mt" flush title={<>Kardex · {product.name}</>} extra={rows && <span className="muted">{rows.length} movimientos recientes</span>}>
+      {error ? <div className="form-error m">{error}</div> : !rows ? <Spinner label="Cargando movimientos…" />
+        : <Table columns={columns} rows={rows} rowKey={(m) => m.id} pageSize={15} empty="Este producto no tiene movimientos." />}
+    </Card>
   );
 }

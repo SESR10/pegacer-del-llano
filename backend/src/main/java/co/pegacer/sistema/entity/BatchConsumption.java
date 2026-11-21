@@ -25,6 +25,15 @@ public class BatchConsumption {
     @Column(name = "variation_pct", insertable = false, updatable = false, precision = 8, scale = 2)
     private BigDecimal variationPct;
 
+    protected BatchConsumption() { }
+
+    public BatchConsumption(Batch batch, Product product, BigDecimal theoreticalQty, BigDecimal realQty) {
+        this.batch = batch;
+        this.product = product;
+        this.theoreticalQty = theoreticalQty;
+        this.realQty = realQty;
+    }
+
     public Long getId() { return id; }
     public Batch getBatch() { return batch; }
     public Product getProduct() { return product; }

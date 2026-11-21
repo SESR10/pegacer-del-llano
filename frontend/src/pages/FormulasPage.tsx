@@ -1,45 +1,49 @@
-import { data, productById } from '../services/data';
-import { Chip, PageHead } from '../components/ui';
+import { useData } from '../services/store';
+import { Card, Chip, PageHead } from '../components/ui';
 import { num, unit } from '../utils/format';
-import { tolerance } from '../utils/metrics';
+import { toleranceOf } from '../utils/metrics';
 
 export default function FormulasPage() {
+  const data = useData();
+  const tolerance = toleranceOf(data);
+  const withFormula = new Set(data.formulas.map((f) => f.productId ?? data.products.find((p) => p.name === f.product)?.id));
+  const missing = data.products.filter((p) => p.category === 'PRODUCTO_TERMINADO' && !withFormula.has(p.id));
+
   return (
     <>
       <PageHead title="Fórmulas" subtitle="Receta de cada producto. Los valores se configuran aquí, no están escritos en el código." />
-      <div className="notice">La edición de fórmulas por el administrador se habilita en la Fase 9. Estos son los valores de referencia informados por la empresa.</div>
+      <div className="notice">La edición de fórmulas por el administrador se habilita en la Fase 9.</div>
       {data.formulas.map((f) => (
-        <div className="grid two" key={f.id}>
-          <div className="card">
-            <h3>{f.name} <Chip tone="ok">Activa · v{f.version}</Chip></h3>
-            <div className="kpi-sub" style={{ marginBottom: 12 }}>Producto: {f.product}</div>
-            <div className="table-wrap">
-              <table>
-                <thead><tr><th>Material por cochada</th><th className="num">Cantidad</th><th>Unidad</th></tr></thead>
-                <tbody>
-                  {f.items.map((i) => {
-                    const p = productById(i.productId);
-                    return <tr key={i.productId}><td>{p?.name}</td><td className="num">{num(i.quantity, 2)}</td><td>{unit(p?.unit ?? '')}</td></tr>;
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-          <div className="card" style={{ alignSelf: 'start' }}>
-            <h3>Resultado esperado</h3>
+        <div className="grid two mb" key={f.id}>
+          <Card title={f.name} extra={<Chip tone={f.active === false ? 'neutral' : 'ok'}>{f.active === false ? 'Inactiva' : 'Activa'} · v{f.version}</Chip>} flush>
+            <p className="muted card-pad">Producto: {f.product}</p>
+            <ul className="list">
+              {f.items.map((i) => {
+                const p = data.products.find((x) => x.id === i.productId);
+                return (
+                  <li key={i.productId}>
+                    <span className="strong">{p?.name}</span>
+                    <span className="mono">{num(i.quantity, 2)} <span className="muted">{unit(p?.unit ?? '')}</span></span>
+                  </li>
+                );
+              })}
+            </ul>
+          </Card>
+          <Card title="Resultado esperado" className="self-start">
             <dl className="kv">
-              <dt>Bolsas por cochada</dt><dd>{f.minBags}–{f.maxBags} (meta {f.expectedBags})</dd>
+              <dt>Bolsas por cochada</dt><dd>{f.minBags}–{f.maxBags} <span className="muted">(meta {f.expectedBags})</span></dd>
               <dt>Peso por bolsa</dt><dd>{num(f.bagWeightKg)} kg</dd>
               <dt>Producción por cochada</dt><dd>≈ {num(f.expectedBags * f.bagWeightKg, 0)} kg</dd>
               <dt>Tolerancia de consumo</dt><dd>±{tolerance} %</dd>
             </dl>
-          </div>
+          </Card>
         </div>
       ))}
-      <div className="card mt">
-        <h3>Pegante para enchape premium <Chip tone="neutral">Sin fórmula</Chip></h3>
-        <p className="kpi-sub" style={{ margin: 0 }}>La empresa debe entregar la receta y los costos de este producto para registrarlos.</p>
-      </div>
+      {missing.map((p) => (
+        <Card key={p.id} title={p.name} extra={<Chip tone="neutral">Sin fórmula</Chip>}>
+          <p className="muted m0">La empresa debe entregar la receta y los costos de este producto para registrarlos.</p>
+        </Card>
+      ))}
     </>
   );
 }
