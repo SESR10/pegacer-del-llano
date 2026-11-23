@@ -4,7 +4,7 @@ export interface Product { id: number; code: string; name: string; category: Cat
 export interface FormulaItem { productId: number; quantity: number; }
 export interface Formula {
   id: number; name: string; version: number; product: string; productId?: number; active?: boolean;
-  expectedBags: number; minBags: number; maxBags: number; bagWeightKg: number; items: FormulaItem[];
+  expectedBags: number; minBags: number; maxBags: number; bagWeightKg: number; items: FormulaItem[]; createdAt?: string;
 }
 export interface Consumption { productId: number; theoretical: number; real: number; variationPct: number; }
 export interface Batch {
@@ -53,3 +53,9 @@ export interface AdjustInput { productId: number; type: 'AJUSTE_POS' | 'AJUSTE_N
 
 export interface CatalogItem { code: string; name: string; }
 export interface Catalogs { categories: CatalogItem[]; units: CatalogItem[]; }
+
+/** Nueva fórmula o nueva versión (POST /api/formulas). */
+export interface FormulaInput {
+  productId: number; name: string; expectedBags: number; minBags: number; maxBags: number; bagWeightKg: number;
+  items: { productId: number; quantity: number }[];
+}

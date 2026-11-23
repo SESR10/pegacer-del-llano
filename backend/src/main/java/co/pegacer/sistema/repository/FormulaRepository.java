@@ -13,4 +13,9 @@ public interface FormulaRepository extends JpaRepository<Formula, Long> {
 
     @EntityGraph(attributePaths = {"product", "items", "items.product"})
     Optional<Formula> findWithItemsById(Long id);
+
+    List<Formula> findByProductIdAndActiveTrue(Long productId);
+
+    @org.springframework.data.jpa.repository.Query("select coalesce(max(f.version), 0) from Formula f where f.product.id = :productId")
+    int maxVersion(@org.springframework.data.repository.query.Param("productId") Long productId);
 }

@@ -7,7 +7,7 @@ import { Card, Chip, Empty, Kpi, PageHead, StockBar } from '../components/ui';
 import ProductionChart from '../components/ProductionChart';
 import BatchForm from '../components/BatchForm';
 import { num, unit, dateTime } from '../utils/format';
-import { batchStatus, can, formulaOf, productionByDay, recentBatches, stockStatus, toleranceOf } from '../utils/metrics';
+import { activeFormula, batchStatus, can, formulaOf, productionByDay, recentBatches, stockStatus, toleranceOf } from '../utils/metrics';
 
 export default function DashboardPage() {
   const data = useData();
@@ -16,7 +16,7 @@ export default function DashboardPage() {
 
   const batches = recentBatches(data, 30);
   const days = productionByDay(batches, 30);
-  const formula = data.formulas[0];
+  const formula = activeFormula(data);
   const tolerance = toleranceOf(data);
   const bags = batches.reduce((s, b) => s + b.bags, 0);
   const avg = batches.length ? bags / batches.length : 0;
