@@ -18,6 +18,14 @@ public class DispatchItem {
     @Column(nullable = false, precision = 12, scale = 3)
     private BigDecimal quantity;
 
+    protected DispatchItem() { }
+
+    public DispatchItem(Dispatch dispatch, Product product, BigDecimal quantity) {
+        this.dispatch = dispatch;
+        this.product = product;
+        this.quantity = quantity;
+    }
+
     public Long getId() { return id; }
     public Dispatch getDispatch() { return dispatch; }
     public Product getProduct() { return product; }

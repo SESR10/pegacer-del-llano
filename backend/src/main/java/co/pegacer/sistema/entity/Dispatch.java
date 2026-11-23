@@ -27,6 +27,15 @@ public class Dispatch {
     @OrderBy("id")
     private List<DispatchItem> items = new ArrayList<>();
 
+    protected Dispatch() { }
+
+    public Dispatch(String code, String customerName, Instant dispatchedAt, AppUser user) {
+        this.code = code;
+        this.customerName = customerName;
+        this.dispatchedAt = dispatchedAt;
+        this.user = user;
+    }
+
     public Long getId() { return id; }
     public String getCode() { return code; }
     public String getCustomerName() { return customerName; }

@@ -28,6 +28,17 @@ public class Waste {
     @Column(name = "is_demo", nullable = false)
     private boolean demo;
 
+    protected Waste() { }
+
+    public Waste(Product product, Batch batch, BigDecimal quantity, String reason, Instant recordedAt, AppUser user) {
+        this.product = product;
+        this.batch = batch;
+        this.quantity = quantity;
+        this.reason = reason;
+        this.recordedAt = recordedAt;
+        this.user = user;
+    }
+
     public Long getId() { return id; }
     public Product getProduct() { return product; }
     public Batch getBatch() { return batch; }

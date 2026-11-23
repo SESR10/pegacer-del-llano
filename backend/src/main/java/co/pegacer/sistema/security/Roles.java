@@ -17,6 +17,10 @@ public final class Roles {
     public static final String INVENTARIO = "hasAnyRole('ADMIN','INVENTARIO')";
     public static final String PRODUCCION = "hasAnyRole('ADMIN','PRODUCCION')";
     public static final String COMPRAS = "hasAnyRole('ADMIN','COMPRAS')";
+    /** Despachos de producto terminado: bodega (Inventario) o Producción. */
+    public static final String DESPACHOS = "hasAnyRole('ADMIN','INVENTARIO','PRODUCCION')";
+    /** Desperdicios: Inventario o Producción (se pierden en bodega o en la mezcla). */
+    public static final String DESPERDICIOS = "hasAnyRole('ADMIN','INVENTARIO','PRODUCCION')";
     public static final String ALERTAS = "hasAnyRole('ADMIN','INVENTARIO','PRODUCCION','COMPRAS')";
 
     private Roles() { }

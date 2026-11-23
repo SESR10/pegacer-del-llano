@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { apiFetch, apiFetchFull } from './auth';
 import { DEMO_ONLY, demoSnapshot } from './data';
-import type { AdjustInput, Alert, Batch, BatchInput, Catalogs, Category, Formula, FormulaInput, Movement, Product, ProductInput, Snapshot } from './types';
+import type { AdjustInput, Alert, Batch, BatchInput, Catalogs, Category, DispatchInput, Formula, FormulaInput, Movement, Product, ProductInput, Snapshot, WasteInput } from './types';
 
 /**
  * Datos de la aplicación (Fase 6 en adelante).
@@ -80,6 +80,8 @@ interface Store {
   saveFormula: (input: FormulaInput) => Promise<Formula>;
   activateFormula: (id: number) => Promise<void>;
   updateSetting: (key: string, value: string) => Promise<void>;
+  registerDispatch: (input: DispatchInput) => Promise<string>;
+  registerWaste: (input: WasteInput) => Promise<void>;
 }
 
 const StoreContext = createContext<Store | null>(null);
@@ -270,8 +272,47 @@ export function DataProvider({ children }: { children: ReactNode }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reload]);
 
+  const registerDispatch = useCallback(async (input: DispatchInput) => {
+    if (!DEMO_ONLY) {
+      const d = await apiFetch<{ code: string }>('/api/dispatches', { method: 'POST', body: JSON.stringify(input) });
+      await reload();
+      return d.code;
+    }
+    let code = '';
+    mutate((s) => {
+      const missing = input.items.map((i) => ({ i, p: s.products.find((x) => x.id === i.productId)! })).filter(({ i, p }) => p.stock < i.quantity);
+      if (missing.length) throw new Error(missing.map(({ i, p }) => `No hay suficiente ${p.name.toLowerCase()}: hay ${p.stock} y se necesitan ${i.quantity}.`).join(' '));
+      const at = input.dispatchedAt ?? new Date().toISOString();
+      const year = new Date(at).getFullYear();
+      const last = Math.max(0, ...s.dispatches.filter((d) => d.code.startsWith(`D-${year}-`)).map((d) => Number(d.code.slice(7)) || 0));
+      code = `D-${year}-${String(last + 1).padStart(4, '0')}`;
+      for (const i of input.items) {
+        demoMove(s, i.productId, 'SALIDA_DESPACHO', i.quantity, `Despacho ${code}`);
+        s.dispatches.unshift({ code, at, customer: input.customerName.trim(), productId: i.productId, quantity: i.quantity });
+      }
+      s.dispatches.sort((a, b) => b.at.localeCompare(a.at));
+    });
+    return code;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reload]);
+
+  const registerWaste = useCallback(async (input: WasteInput) => {
+    if (!DEMO_ONLY) {
+      await apiFetch('/api/waste', { method: 'POST', body: JSON.stringify(input) });
+      await reload();
+      return;
+    }
+    mutate((s) => {
+      const notes = input.notes?.trim() ? `${input.reason} — ${input.notes.trim()}` : input.reason;
+      demoMove(s, input.productId, 'DESPERDICIO', input.quantity, notes);
+      s.waste.unshift({ productId: input.productId, quantity: input.quantity, reason: input.reason, at: input.recordedAt ?? new Date().toISOString() });
+      s.waste.sort((a, b) => b.at.localeCompare(a.at));
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reload]);
+
   return (
-    <StoreContext.Provider value={{ data, error, live: !DEMO_ONLY, reload, registerBatch, resolveAlert, kardex, catalogs, saveProduct, deleteProduct, adjust, saveFormula, activateFormula, updateSetting }}>
+    <StoreContext.Provider value={{ data, error, live: !DEMO_ONLY, reload, registerBatch, resolveAlert, kardex, catalogs, saveProduct, deleteProduct, adjust, saveFormula, activateFormula, updateSetting, registerDispatch, registerWaste }}>
       {children}
     </StoreContext.Provider>
   );

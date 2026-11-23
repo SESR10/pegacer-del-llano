@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { LuPencil, LuPlus, LuSlidersHorizontal } from 'react-icons/lu';
 import { useData, useStore } from '../services/store';
 import { useAuth } from '../services/auth';
@@ -11,7 +11,7 @@ import { can, stockStatus } from '../utils/metrics';
 
 const CAT_LABEL: Record<Category, string> = { MATERIA_PRIMA: 'Materia prima', INSUMO: 'Insumo', PRODUCTO_TERMINADO: 'Producto terminado' };
 
-export default function InventarioPage({ only, title, subtitle, catalog }: { only?: Category[]; title?: string; subtitle?: string; catalog?: boolean }) {
+export default function InventarioPage({ only, title, subtitle, catalog, actions: extra }: { only?: Category[]; title?: string; subtitle?: string; catalog?: boolean; actions?: ReactNode }) {
   const data = useData();
   const { user } = useAuth();
   const allowed = can(user?.role, 'inventario');
@@ -41,11 +41,11 @@ export default function InventarioPage({ only, title, subtitle, catalog }: { onl
 
   const actions = allowed && (catalog
     ? <button type="button" className="btn-primary" onClick={() => setEditing(null)}><LuPlus /> Nuevo producto</button>
-    : <button type="button" className="btn-primary" onClick={() => setAdjusting(undefined)}><LuSlidersHorizontal /> Ajustar inventario</button>);
+    : <button type="button" className={extra ? 'btn' : 'btn-primary'} onClick={() => setAdjusting(undefined)}><LuSlidersHorizontal /> Ajustar inventario</button>);
 
   return (
     <>
-      <PageHead title={title ?? 'Inventario'} subtitle={subtitle ?? 'Existencias actuales y kardex de cada producto. Toque un producto para ver sus movimientos.'} actions={actions} />
+      <PageHead title={title ?? 'Inventario'} subtitle={subtitle ?? 'Existencias actuales y kardex de cada producto. Toque un producto para ver sus movimientos.'} actions={(extra || actions) && <>{actions}{extra}</>} />
       {cats.length > 1 && (
         <div className="toolbar">
           <Segmented value={cat} onChange={setCat} options={[{ value: 'todos', label: 'Todos', count: products.length },

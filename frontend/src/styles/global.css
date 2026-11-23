@@ -495,3 +495,33 @@ a { color: inherit; }
   .material-input input { font-size: 16px; }
   .field input, .field select, .field textarea { font-size: 16px; } /* evita el zoom automático en iPhone */
 }
+
+/* Fase 11: despachos (varias líneas) y capacidad de producción */
+.line-items { display: grid; gap: 10px; }
+.line-item { display: grid; grid-template-columns: minmax(0, 1fr) 150px auto; gap: 8px; align-items: center; }
+.line-item .line-hint { grid-column: 1 / -1; margin-top: -4px; font-size: 12px; }
+.add-line { justify-self: start; margin-top: 4px; }
+.btn-sm { padding: 6px 12px; font-size: 13px; }
+.stock-total { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 16px; border: 1px solid var(--line); border-radius: var(--radius); background: #fbfcfd; }
+.capacity .card-head h3, .capacity .card-head > :first-child { display: flex; align-items: center; gap: 8px; }
+.capacity-head { display: flex; flex-wrap: wrap; gap: 16px 32px; align-items: flex-end; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
+.capacity-head > div { display: grid; gap: 2px; }
+.capacity-n { font-size: 32px; font-weight: 700; line-height: 1.1; color: var(--ink); }
+.capacity-limit { margin-left: auto; justify-items: end; }
+.capacity-list { display: grid; gap: 4px; padding-top: 10px; }
+.capacity-row { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(80px, 1fr) 56px; gap: 14px; align-items: center; padding: 8px 10px; border-radius: 8px; }
+.capacity-row.limiting { background: var(--amber-soft, #fff7e6); }
+.capacity-name { display: grid; gap: 1px; min-width: 0; }
+.capacity-name strong { font-size: 14px; }
+.capacity-bar { height: 8px; border-radius: 99px; background: var(--line); overflow: hidden; }
+.capacity-bar span { display: block; height: 100%; border-radius: inherit; background: var(--navy-700, #2d4a6b); }
+.capacity-row.limiting .capacity-bar span { background: var(--amber, #d98b00); }
+.capacity-val { text-align: right; font-weight: 600; }
+@media (max-width: 640px) {
+  .line-item { grid-template-columns: minmax(0, 1fr) 110px auto; }
+  .capacity-head { gap: 12px 24px; }
+  .capacity-limit { margin-left: 0; justify-items: start; }
+  .capacity-n { font-size: 26px; }
+  .capacity-row { grid-template-columns: minmax(0, 1fr) 44px; padding: 8px 6px; }
+  .capacity-bar { grid-column: 1 / -1; grid-row: 2; }
+}

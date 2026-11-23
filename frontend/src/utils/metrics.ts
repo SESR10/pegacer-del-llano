@@ -50,9 +50,28 @@ export function productionByDay(batches: Batch[], days = 30) {
 }
 
 /** Permisos de la pantalla: iguales a los del servidor (security/Roles.java). Sin sesión (demostración) se permite todo. */
-export const can = (role: string | undefined, action: 'cochadas' | 'alertas' | 'inventario') => {
+export const can = (role: string | undefined, action: 'cochadas' | 'alertas' | 'inventario' | 'operaciones') => {
   if (!role) return true;
+  if (action === 'operaciones') return ['ADMIN', 'INVENTARIO', 'PRODUCCION'].includes(role);
   if (action === 'cochadas') return ['ADMIN', 'PRODUCCION'].includes(role);
   if (action === 'inventario') return ['ADMIN', 'INVENTARIO'].includes(role);
   return ['ADMIN', 'INVENTARIO', 'PRODUCCION', 'COMPRAS'].includes(role);
 };
+
+/** Fase 11: cuántas cochadas completas alcanzan con el inventario actual, por fórmula activa (igual que GET /api/production/capacity). */
+export interface CapacityMaterial { productId: number; name: string; unit: string; stock: number; perBatch: number; batches: number; limiting: boolean; }
+export interface Capacity { formula: Formula; batches: number; estimatedBags: number; limiting: CapacityMaterial | null; materials: CapacityMaterial[]; }
+export function capacity(data: Snapshot): Capacity[] {
+  return data.formulas.filter((f) => f.active).map((f) => {
+    const materials = f.items.map((i) => {
+      const p = data.products.find((x) => x.id === i.productId);
+      const stock = Math.max(0, p?.stock ?? 0);
+      return { productId: i.productId, name: p?.name ?? '—', unit: p?.unit ?? '', stock, perBatch: i.quantity, batches: i.quantity > 0 ? Math.floor(stock / i.quantity + 1e-9) : Infinity, limiting: false };
+    });
+    const min = materials.length ? Math.min(...materials.map((m) => m.batches)) : 0;
+    const batches = Number.isFinite(min) ? min : 0;
+    const limiting = materials.find((m) => m.batches === min) ?? null;
+    if (limiting) limiting.limiting = true;
+    return { formula: f, batches, estimatedBags: Math.round(batches * f.expectedBags), limiting, materials };
+  });
+}
