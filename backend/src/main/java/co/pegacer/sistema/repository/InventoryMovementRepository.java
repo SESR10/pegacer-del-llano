@@ -24,4 +24,11 @@ public interface InventoryMovementRepository extends JpaRepository<InventoryMove
                                    @Param("from") Instant from, @Param("to") Instant to, Pageable pageable);
 
     boolean existsByProductId(Long productId);
+
+    /** Fase 14: suma por producto y tipo de movimiento en [from, to). Filas: productId, tipo, cantidad. */
+    @Query("""
+        SELECT m.product.id, m.movementType, SUM(m.quantity) FROM InventoryMovement m
+        WHERE m.createdAt >= :from AND m.createdAt < :to
+        GROUP BY m.product.id, m.movementType""")
+    java.util.List<Object[]> totalsByProductAndType(@Param("from") Instant from, @Param("to") Instant to);
 }

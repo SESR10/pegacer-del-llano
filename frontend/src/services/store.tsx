@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { apiFetch, apiFetchFull } from './auth';
 import { DEMO_ONLY, demoSnapshot } from './data';
+import type { InvRow } from '../utils/reports';
 import type { AdjustInput, Alert, Batch, BatchInput, Catalogs, Category, DispatchInput, Formula, FormulaInput, Movement, Product, ProductInput, PurchaseInput, Snapshot, Supplier, SupplierInput, WasteInput } from './types';
 
 /**
@@ -89,6 +90,7 @@ interface Store {
   registerWaste: (input: WasteInput) => Promise<void>;
   registerPurchase: (input: PurchaseInput) => Promise<string>;
   saveSupplier: (input: SupplierInput, id?: number) => Promise<Supplier>;
+  inventoryReport: (from: Date, to: Date) => Promise<InvRow[]>;
 }
 
 const StoreContext = createContext<Store | null>(null);
@@ -294,7 +296,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       return;
     }
     const n = Number(value.replace(',', '.'));
-    if (!(n > 0 && n <= 50)) throw new Error('La tolerancia debe ser un número mayor que 0 y hasta 50 (%).');
+    if (key === 'consumo.tolerancia_pct' && !(n > 0 && n <= 50)) throw new Error('La tolerancia debe ser un número mayor que 0 y hasta 50 (%).');
+    if (key === 'costo.otros_por_cochada' && !(n >= 0)) throw new Error('Los otros costos deben ser un valor en pesos mayor o igual a cero.');
     mutate((s) => { s.settings[key] = String(n); });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reload]);
@@ -392,8 +395,32 @@ export function DataProvider({ children }: { children: ReactNode }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reload]);
 
+  const inventoryReport = useCallback(async (from: Date, to: Date): Promise<InvRow[]> => {
+    if (!DEMO_ONLY) {
+      const r = await apiFetch<{ rows: any[] }>(`/api/reports/inventory?from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`); // eslint-disable-line @typescript-eslint/no-explicit-any
+      return r.rows.map((x) => ({ ...x, unitCost: x.unitCost == null ? null : Number(x.unitCost), opening: n(x.opening), entries: n(x.entries), exits: n(x.exits),
+        closing: n(x.closing), movements: Object.fromEntries(Object.entries(x.movements ?? {}).map(([k, v]) => [k, n(v)])) }));
+    }
+    // Demostración: el mismo cálculo con los movimientos en memoria.
+    const s = current.current!;
+    const entry = (t: string) => ['INICIAL', 'ENTRADA_COMPRA', 'PRODUCCION', 'AJUSTE_POS'].includes(t);
+    return s.products.map((p) => {
+      const mine = s.movements.filter((m) => m.productId === p.id);
+      const range = mine.filter((m) => { const t = new Date(m.at).getTime(); return t >= from.getTime() && t < to.getTime(); });
+      const later = mine.filter((m) => new Date(m.at).getTime() >= to.getTime());
+      const net = (ms: Movement[]) => ms.reduce((t, m) => t + (entry(m.type) ? m.quantity : -m.quantity), 0);
+      const movements: Record<string, number> = {};
+      range.forEach((m) => { movements[m.type] = (movements[m.type] ?? 0) + m.quantity; });
+      const entries = range.filter((m) => entry(m.type)).reduce((t, m) => t + m.quantity, 0);
+      const exits = range.filter((m) => !entry(m.type)).reduce((t, m) => t + m.quantity, 0);
+      const closing = p.stock - net(later);
+      return { productId: p.id, code: p.code, name: p.name, category: p.category, unit: p.unit, unitCost: p.unitCost ?? null,
+        opening: closing - entries + exits, entries, exits, closing, movements };
+    });
+  }, []);
+
   return (
-    <StoreContext.Provider value={{ data, error, live: !DEMO_ONLY, reload, registerBatch, resolveAlerts, resolvedAlerts, kardex, catalogs, saveProduct, deleteProduct, adjust, saveFormula, activateFormula, updateSetting, registerDispatch, registerWaste, registerPurchase, saveSupplier }}>
+    <StoreContext.Provider value={{ data, error, live: !DEMO_ONLY, reload, registerBatch, resolveAlerts, resolvedAlerts, kardex, catalogs, saveProduct, deleteProduct, adjust, saveFormula, activateFormula, updateSetting, registerDispatch, registerWaste, registerPurchase, saveSupplier, inventoryReport }}>
       {children}
     </StoreContext.Provider>
   );

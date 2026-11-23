@@ -649,6 +649,40 @@ class ApiIntegrationTests {
         mvc.perform(as("inventario", post("/api/alerts/resolve")).content("{\"ids\":[]}")).andExpect(status().isBadRequest());
     }
 
+    @Test
+    void inventoryReportBalancesOpeningMovementsAndClosing() throws Exception {
+        java.time.Instant from = java.time.Instant.now().minus(java.time.Duration.ofDays(30));
+        java.time.Instant to = java.time.Instant.now().plus(java.time.Duration.ofMinutes(1));
+        BigDecimal cem = stock("MP-CEM");
+        String body = mvc.perform(as("gerencia", get("/api/reports/inventory").param("from", from.toString()).param("to", to.toString())))
+           .andExpect(status().isOk())
+           .andReturn().getResponse().getContentAsString();
+        com.fasterxml.jackson.databind.JsonNode row = null;
+        for (com.fasterxml.jackson.databind.JsonNode r : json.readTree(body).at("/data/rows")) if ("MP-CEM".equals(r.get("code").asText())) row = r;
+        assertThat(row).isNotNull();
+        BigDecimal opening = row.get("opening").decimalValue(), entries = row.get("entries").decimalValue(),
+                exits = row.get("exits").decimalValue(), closing = row.get("closing").decimalValue();
+        assertThat(closing).isEqualByComparingTo(cem);
+        assertThat(opening.add(entries).subtract(exits)).isEqualByComparingTo(closing);
+        assertThat(row.at("/movements/CONSUMO_COCHADA").decimalValue()).isPositive();
+        // El saldo final de un periodo pasado no cuenta lo que se movió después
+        String past = mvc.perform(as("gerencia", get("/api/reports/inventory").param("from", from.minus(java.time.Duration.ofDays(30)).toString()).param("to", from.toString())))
+           .andReturn().getResponse().getContentAsString();
+        for (com.fasterxml.jackson.databind.JsonNode r : json.readTree(past).at("/data/rows"))
+            if ("MP-CEM".equals(r.get("code").asText())) assertThat(r.get("closing").decimalValue()).isEqualByComparingTo(opening);
+        mvc.perform(as("gerencia", get("/api/reports/inventory").param("from", to.toString()).param("to", from.toString())))
+           .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void otherCostsPerBatchIsValidated() throws Exception {
+        mvc.perform(as("produccion", put("/api/settings/costo.otros_por_cochada")).content("{\"value\":\"45000\"}"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.data['costo.otros_por_cochada']").value("45000"));
+        mvc.perform(as("produccion", put("/api/settings/costo.otros_por_cochada")).content("{\"value\":\"-1\"}"))
+           .andExpect(status().isBadRequest());
+    }
+
     static String newProduct(String code) {
         return "{\"code\":\"" + code + "\",\"name\":\"Pegante de prueba\",\"category\":\"PRODUCTO_TERMINADO\","
                 + "\"unit\":\"BOLSA\",\"minStock\":5,\"initialStock\":10}";

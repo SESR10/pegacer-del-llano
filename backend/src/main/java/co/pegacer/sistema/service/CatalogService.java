@@ -66,6 +66,15 @@ public class CatalogService {
                 throw new BusinessException("La tolerancia debe ser un número mayor que 0 y hasta 50 (%).");
             }
         }
+        if ("costo.otros_por_cochada".equals(key)) {
+            try {
+                java.math.BigDecimal n = new java.math.BigDecimal(v);
+                if (n.signum() < 0) throw new NumberFormatException();
+                v = n.stripTrailingZeros().toPlainString();
+            } catch (NumberFormatException e) {
+                throw new BusinessException("Los otros costos deben ser un valor en pesos mayor o igual a cero.");
+            }
+        }
         String before = s.getValue();
         s.setValue(v);
         audit.log("CAMBIAR_PARAMETRO", "setting", null, Map.of("parametro", key, "antes", before, "despues", v));
