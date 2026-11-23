@@ -14,6 +14,10 @@ public interface AlertRepository extends JpaRepository<Alert, Long> {
     @Query("SELECT a FROM Alert a WHERE (:resolved IS NULL OR a.resolved = :resolved) ORDER BY a.createdAt DESC, a.id DESC")
     List<Alert> search(@Param("resolved") Boolean resolved);
 
+    @EntityGraph(attributePaths = {"product", "batch", "resolvedBy"})
+    @Query("SELECT a FROM Alert a WHERE a.resolved = TRUE ORDER BY a.resolvedAt DESC NULLS LAST, a.id DESC")
+    List<Alert> recentlyResolved(org.springframework.data.domain.Pageable page);
+
     List<Alert> findByProductIdAndAlertTypeInAndResolvedFalse(Long productId, Collection<String> types);
 
     void deleteByProductId(Long productId);

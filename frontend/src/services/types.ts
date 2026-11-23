@@ -16,7 +16,7 @@ export interface Purchase { code: string; at: string; supplier: string; supplier
 export interface Dispatch { code: string; at: string; customer: string; productId: number; quantity: number; }
 export interface Waste { productId: number; quantity: number; reason: string; at: string; }
 export interface Supplier { id: number; nit: string; name: string; phone: string; city: string; email?: string | null; active?: boolean; }
-export interface Alert { id: number; type: string; severity: 'ALTA' | 'MEDIA' | 'INFO'; message: string; at: string; }
+export interface Alert { id: number; type: string; severity: 'ALTA' | 'MEDIA' | 'INFO'; message: string; at: string; productId?: number | null; batchCode?: string | null; resolvedAt?: string | null; resolvedBy?: string | null; }
 
 export interface Snapshot {
   generatedAt: string;

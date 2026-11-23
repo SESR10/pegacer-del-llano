@@ -10,6 +10,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
+import java.util.List;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -628,6 +629,24 @@ class ApiIntegrationTests {
         mvc.perform(as("compras", post("/api/purchases")).content(req.replace("FV-9001", "FV-9002").replace("" + productId("MP-ARE"), "" + productId("PT-PEG"))))
            .andExpect(status().isBadRequest());
         mvc.perform(as("produccion", post("/api/purchases")).content(req)).andExpect(status().isForbidden());
+    }
+
+    @Test
+    void alertsRecordWhoResolvedThemAndCanBeResolvedTogether() throws Exception {
+        List<Long> open = jdbc.queryForList("SELECT id FROM alerts WHERE NOT resolved ORDER BY id LIMIT 3", Long.class);
+        assertThat(open).hasSize(3);
+        mvc.perform(as("inventario", post("/api/alerts/resolve")).content("{\"ids\":" + open + "}"))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.data").value(3))
+           .andExpect(jsonPath("$.message").value("3 alertas marcadas como atendidas."));
+        // Repetir no vuelve a contar las que ya estaban atendidas
+        mvc.perform(as("inventario", post("/api/alerts/resolve")).content("{\"ids\":" + open + "}"))
+           .andExpect(jsonPath("$.data").value(0));
+        mvc.perform(as("inventario", get("/api/alerts?resolved=true")))
+           .andExpect(jsonPath("$.data[0].resolvedBy").value(org.hamcrest.Matchers.notNullValue()))
+           .andExpect(jsonPath("$.data[0].resolvedAt").value(org.hamcrest.Matchers.notNullValue()));
+        mvc.perform(as("gerencia", post("/api/alerts/resolve")).content("{\"ids\":" + open + "}")).andExpect(status().isForbidden());
+        mvc.perform(as("inventario", post("/api/alerts/resolve")).content("{\"ids\":[]}")).andExpect(status().isBadRequest());
     }
 
     static String newProduct(String code) {

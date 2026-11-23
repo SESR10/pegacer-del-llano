@@ -23,6 +23,15 @@ public class AlertController {
         return ApiResponse.ok(alerts.list(resolved));
     }
 
+    public record ResolveManyRequest(@jakarta.validation.constraints.NotEmpty(message = "Seleccione al menos una alerta.") List<Long> ids) { }
+
+    @PostMapping("/resolve")
+    @PreAuthorize(Roles.ALERTAS)
+    public ApiResponse<Integer> resolveMany(@jakarta.validation.Valid @RequestBody ResolveManyRequest req) {
+        int n = alerts.resolveMany(req.ids());
+        return ApiResponse.ok(n == 1 ? "1 alerta marcada como atendida." : n + " alertas marcadas como atendidas.", n);
+    }
+
     @PatchMapping("/{id}/resolve")
     @PreAuthorize(Roles.ALERTAS)
     public ApiResponse<AlertDto> resolve(@PathVariable Long id) {

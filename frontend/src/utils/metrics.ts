@@ -76,3 +76,16 @@ export function capacity(data: Snapshot): Capacity[] {
     return { formula: f, batches, estimatedBags: Math.round(batches * f.expectedBags), limiting, materials };
   });
 }
+
+/** Fase 13: días que alcanza cada materia prima o insumo al ritmo de consumo de los últimos 30 días (cochadas). */
+export interface Coverage { product: Product; daily: number; days: number }
+export function coverage(data: Snapshot, windowDays = 30): Coverage[] {
+  const since = daysAgo(windowDays).getTime();
+  const used = new Map<number, number>();
+  data.batches.filter((b) => new Date(b.producedAt).getTime() >= since)
+    .forEach((b) => b.consumptions.forEach((c) => used.set(c.productId, (used.get(c.productId) ?? 0) + c.real)));
+  return data.products
+    .filter((p) => p.category !== 'PRODUCTO_TERMINADO' && (used.get(p.id) ?? 0) > 0)
+    .map((p) => { const daily = (used.get(p.id) ?? 0) / windowDays; return { product: p, daily, days: Math.max(0, p.stock) / daily }; })
+    .sort((a, b) => a.days - b.days);
+}
