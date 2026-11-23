@@ -603,6 +603,33 @@ class ApiIntegrationTests {
         mvc.perform(as("gerencia", post("/api/waste")).content(req)).andExpect(status().isForbidden());
     }
 
+    @Test
+    void purchaseAddsStockAndUpdatesCost() throws Exception {
+        BigDecimal cem = stock("MP-CEM");
+        BigDecimal are = stock("MP-ARE");
+        Long supplier = q("SELECT id FROM suppliers ORDER BY id LIMIT 1", Long.class);
+        String req = "{\"supplierId\":" + supplier + ",\"invoiceNumber\":\"FV-9001\",\"items\":["
+                + "{\"productId\":" + productId("MP-CEM") + ",\"quantity\":40,\"unitCost\":31500},"
+                + "{\"productId\":" + productId("MP-ARE") + ",\"quantity\":6.5}]}";
+        String body = mvc.perform(as("compras", post("/api/purchases")).content(req))
+           .andExpect(status().isCreated())
+           .andExpect(jsonPath("$.message").value("Compra registrada."))
+           .andExpect(jsonPath("$.data.code").value(org.hamcrest.Matchers.matchesPattern("OC-\\d{4}-0001")))
+           .andExpect(jsonPath("$.data.items.length()").value(2))
+           .andReturn().getResponse().getContentAsString();
+        assertThat(stock("MP-CEM")).isEqualByComparingTo(cem.add(new BigDecimal("40")));
+        assertThat(stock("MP-ARE")).isEqualByComparingTo(are.add(new BigDecimal("6.5")));
+        assertThat(q("SELECT unit_cost FROM products WHERE code = 'MP-CEM'", BigDecimal.class)).isEqualByComparingTo("31500");
+        long id = json.readTree(body).at("/data/id").asLong();
+        assertThat(q("SELECT count(*) FROM inventory_movements WHERE movement_type = 'ENTRADA_COMPRA' AND reference_id = ?", Integer.class, id)).isEqualTo(2);
+        // Misma factura del mismo proveedor: rechazada
+        mvc.perform(as("compras", post("/api/purchases")).content(req)).andExpect(status().isConflict());
+        // El producto terminado no se compra
+        mvc.perform(as("compras", post("/api/purchases")).content(req.replace("FV-9001", "FV-9002").replace("" + productId("MP-ARE"), "" + productId("PT-PEG"))))
+           .andExpect(status().isBadRequest());
+        mvc.perform(as("produccion", post("/api/purchases")).content(req)).andExpect(status().isForbidden());
+    }
+
     static String newProduct(String code) {
         return "{\"code\":\"" + code + "\",\"name\":\"Pegante de prueba\",\"category\":\"PRODUCTO_TERMINADO\","
                 + "\"unit\":\"BOLSA\",\"minStock\":5,\"initialStock\":10}";

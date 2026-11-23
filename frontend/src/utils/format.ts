@@ -16,3 +16,4 @@ export const MOVEMENT_LABEL: Record<string, string> = {
   SALIDA_DESPACHO: 'Despacho', DESPERDICIO: 'Desperdicio', AJUSTE_POS: 'Ajuste +', AJUSTE_NEG: 'Ajuste −',
 };
 export const isEntry = (type: string) => ['INICIAL', 'ENTRADA_COMPRA', 'PRODUCCION', 'AJUSTE_POS'].includes(type);
+export const money = (n: number) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);

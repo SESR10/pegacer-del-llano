@@ -21,7 +21,11 @@ function shiftDates(snapshot: Snapshot): Snapshot {
   return walk(snapshot) as Snapshot;
 }
 
-export const demoSnapshot = (): Snapshot => shiftDates(structuredClone(raw) as unknown as Snapshot);
+export const demoSnapshot = (): Snapshot => {
+  const s = shiftDates(structuredClone(raw) as unknown as Snapshot);
+  s.suppliers = s.suppliers.map((x, i) => ({ ...x, id: x.id ?? i + 1, active: x.active ?? true }));
+  return s;
+};
 
 export const DEMO_ONLY = import.meta.env.VITE_DEMO_ONLY === 'true';
 const API = import.meta.env.VITE_API_URL ?? '';
