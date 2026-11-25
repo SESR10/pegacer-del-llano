@@ -28,8 +28,8 @@ export const NAV: NavGroup[] = [
     { path: '/reportes', label: 'Reportes', icon: LuFileBarChart },
   ] },
   { title: 'Sistema', items: [
-    { path: '/usuarios', label: 'Usuarios', icon: LuUsers, phase: 15 },
-    { path: '/configuracion', label: 'Configuración', icon: LuSettings, phase: 15 },
+    { path: '/usuarios', label: 'Usuarios', icon: LuUsers },
+    { path: '/configuracion', label: 'Configuración', icon: LuSettings },
   ] },
 ];
 

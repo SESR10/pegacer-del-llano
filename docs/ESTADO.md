@@ -9,7 +9,7 @@
 | Frontend (Fase 5) | React + Vite + TypeScript. Diseño profesional y responsive: en el celular hay barra inferior, menú deslizable, tablas convertidas en tarjetas y formularios en hoja inferior. |
 | Pantallas conectadas (Fase 6) | Todas las pantallas leen los datos reales del servidor (inventario, kardex, fórmulas, cochadas, compras, despachos, desperdicios, proveedores, alertas). Las alertas se pueden marcar como atendidas. |
 | Registro de cochadas (Fase 10) | Formulario y endpoint `POST /api/batches`: descuenta la materia prima, suma las bolsas al producto terminado, calcula la variación frente a la fórmula y crea alertas de consumo fuera de rango y de producción baja. Código consecutivo por año (C-2026-0001). Si un material no alcanza, no se guarda nada. |
-| Pruebas | 49 pruebas automáticas (`mvn test`), todas pasan. |
+| Pruebas | 50 pruebas automáticas (`mvn test`), todas pasan. |
 | Productos (Fase 7) | Crear, editar y eliminar productos desde la pantalla Productos (roles Administrador e Inventario). Al crear se puede dar un stock inicial, que queda en el kardex. Un producto con historial se desactiva en lugar de borrarse. |
 | Inventario (Fase 8) | Ajustes de inventario (sumar o restar) con motivo obligatorio y vista previa del stock que quedará. Quedan en el kardex y en la auditoría. |
 | Fórmulas (Fase 9) | Crear y editar fórmulas desde la pantalla Fórmulas (Administrador y Producción). Cada cambio se guarda como **versión nueva** y la anterior queda en el historial: las cochadas ya registradas conservan su receta. Se puede volver a una versión anterior. La tolerancia de consumo se cambia en la misma pantalla. |
@@ -18,6 +18,7 @@
 | Compras y proveedores (Fase 12) | Registrar compras con uno o varios productos, factura y costo (`POST /api/purchases`, código OC-2026-0001). Cada producto entra al inventario (`ENTRADA_COMPRA`, kardex y auditoría) y, si se escribe el costo, actualiza el costo del producto. No se acepta la misma factura dos veces del mismo proveedor ni comprar producto terminado. Proveedores: crear, editar y desactivar; desde cada proveedor se puede registrar una compra. Roles: Administrador y Compras. |
 | Alertas (Fase 13) | Activas e historial de **atendidas** (quién y cuándo; las de stock se cierran solas al reponer). Filtros por gravedad y tipo, y **atender varias a la vez** (`POST /api/alerts/resolve`). Tarjeta "¿Para cuántos días alcanza?" con los días de inventario de cada materia prima al ritmo de consumo de los últimos 30 días. Migración V3: `alerts.resolved_at` y `resolved_by`. |
 | Reportes (Fase 14) | Pantalla Reportes con periodo (últimos 30 días, este mes, mes anterior u otro) y cinco reportes: **producción** (por día, semana o mes, por producto y cochadas), **consumo** (teórico contra real por material), **costos** (por cochada, por bolsa y de materias primas, con "otros costos por cochada" configurable; si falta el costo de un material se avisa y no se inventa), **inventario** (saldo inicial, entradas y salidas por tipo, saldo final y valor; `GET /api/reports/inventory`) y **rendimiento** (bolsas esperadas contra obtenidas y desperdicio). Se exportan a **Excel (.xlsx)**, **CSV** (punto y coma, para Excel en español) y **PDF** (impresión con encabezado de la empresa). Migración V4: parámetro `costo.otros_por_cochada`. |
+| Usuarios y configuración (Fase 15) | Pantalla **Usuarios** (solo Administrador): crear, editar rol y datos, activar o desactivar y asignar contraseña nueva; tabla de qué puede hacer cada rol. Pantalla **Configuración**: parámetros (nombre de la empresa, tolerancia de consumo, otros costos por cochada), cambio de la contraseña propia (todos los usuarios) y registro de **auditoría** (Administrador). Ya no quedan módulos "en construcción". |
 
 ## Permisos por rol
 
@@ -42,5 +43,5 @@ Todos los usuarios con sesión pueden **consultar** todo. Para **modificar**:
 
 ## Siguiente paso
 
-Usuarios y configuración (Fase 15) y pruebas finales (Fase 16).
+Pruebas finales (Fase 16). Antes de usarlo con datos reales: perfil de producción, usuarios reales (cambiar las contraseñas DEMO) y copias de seguridad de PostgreSQL.
 Antes de usarlo con datos reales: perfil de producción, usuarios reales y copias de seguridad de PostgreSQL.
