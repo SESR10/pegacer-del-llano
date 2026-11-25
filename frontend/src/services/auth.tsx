@@ -7,7 +7,8 @@ import { DEMO_ONLY } from './data';
  * En la compilación de demostración (VITE_DEMO_ONLY) no hay backend y se entra sin login.
  */
 export interface SessionUser { id: number; username: string; fullName: string; email: string | null; role: string; roleName: string; }
-interface Session { token: string; expiresAt: string; user: SessionUser; }
+/** privacyPending: falta aceptar la versión vigente de la Política de Tratamiento de Datos (Ley 1581 de 2012). */
+interface Session { token: string; expiresAt: string; user: SessionUser; privacyPending?: boolean; }
 
 const KEY = 'pegacer.session';
 const API = import.meta.env.VITE_API_URL ?? '';
@@ -60,11 +61,16 @@ export async function apiFetchFull<T>(path: string, init: RequestInit = {}): Pro
 
 interface AuthState {
   user: SessionUser | null;
+  /** true mientras el usuario no acepte la política de datos vigente. Las sesiones viejas (sin el dato) también. */
+  privacyPending: boolean;
   login: (username: string, password: string) => Promise<void>;
+  acceptPrivacy: () => Promise<void>;
   logout: () => void;
 }
 
-const AuthContext = createContext<AuthState>({ user: null, login: async () => {}, logout: () => {} });
+const AuthContext = createContext<AuthState>({
+  user: null, privacyPending: false, login: async () => {}, acceptPrivacy: async () => {}, logout: () => {},
+});
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(() => load());
@@ -83,7 +89,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(s);
   }, []);
 
-  return <AuthContext.Provider value={{ user: session?.user ?? null, login, logout }}>{children}</AuthContext.Provider>;
+  const acceptPrivacy = useCallback(async () => {
+    await apiFetch('/api/auth/privacy/accept', { method: 'POST' });
+    const current = load();
+    if (!current) return;
+    const s = { ...current, privacyPending: false };
+    save(s);
+    setSession(s);
+  }, []);
+
+  const privacyPending = !!session && session.privacyPending !== false;
+  return (
+    <AuthContext.Provider value={{ user: session?.user ?? null, privacyPending, login, acceptPrivacy, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export const useAuth = () => useContext(AuthContext);

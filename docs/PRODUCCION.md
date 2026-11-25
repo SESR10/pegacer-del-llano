@@ -39,7 +39,9 @@ En `prod` tampoco se publica Swagger (`/swagger-ui.html`).
 4. **Entrar** con ese usuario. En **Usuarios** crear a las demás personas con su rol, y en **Configuración**
    revisar el nombre de la empresa, la tolerancia de consumo y los otros costos por cochada.
 5. **Borrar `ADMIN_CONTRASENA`** de las variables (ya no se usa; si se deja, el registro avisa).
-6. Cargar los datos iniciales: productos con su stock inicial (pantalla Productos), proveedores y fórmulas.
+6. **Datos legales.** Antes de cargar datos reales, llenar los datos de la empresa en la política de tratamiento de datos
+   (ver [LEGAL-Y-SEGURIDAD.md](LEGAL-Y-SEGURIDAD.md)). Cada usuario deberá aceptarla la primera vez que entre.
+7. Cargar los datos iniciales: productos con su stock inicial (pantalla Productos), proveedores y fórmulas.
 
 ## Copias de seguridad
 

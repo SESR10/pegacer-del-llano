@@ -55,7 +55,10 @@ export default function LoginPage() {
             </button>
           </div>
         </form>
-        <div className="login-foot">Producción · Inventario · Alertas</div>
+        <div className="login-foot">
+          Producción · Inventario · Alertas
+          <a className="login-legal" href="#/privacidad">Política de tratamiento de datos personales</a>
+        </div>
       </div>
     </div>
   );
