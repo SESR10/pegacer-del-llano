@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent, useLayoutEffect } from 'react';
 import { LuCheck, LuWand2 } from 'react-icons/lu';
 import { useData, useStore } from '../services/store';
 import type { Batch } from '../services/types';
@@ -30,7 +30,8 @@ export default function BatchForm({ open, onClose, onCreated }: { open: boolean;
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
+  // useLayoutEffect: el formulario se limpia antes de mostrarse, así no se borra lo que se alcance a escribir.
+  useLayoutEffect(() => {
     if (!open) return;
     setFormulaId(formulas[0]?.id); setProducedAt(localNow()); setBags(''); setReal({}); setNotes(''); setError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps

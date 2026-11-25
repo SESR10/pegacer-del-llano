@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent, useLayoutEffect } from 'react';
 import { LuCheck, LuMinus, LuPlus } from 'react-icons/lu';
 import { useData, useStore } from '../services/store';
 import { Modal, Segmented, useToast } from './ui';
@@ -20,7 +20,8 @@ export default function AdjustForm({ open, productId, onClose }: { open: boolean
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
+  // useLayoutEffect: el formulario se limpia antes de mostrarse, así no se borra lo que se alcance a escribir.
+  useLayoutEffect(() => {
     if (!open) return;
     setPid(productId ?? data.products[0]?.id); setDir('AJUSTE_POS'); setQty(''); setNotes(''); setError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps

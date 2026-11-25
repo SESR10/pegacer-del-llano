@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent, useLayoutEffect } from 'react';
 import { LuCheck, LuPencil, LuPlus } from 'react-icons/lu';
 import { apiFetch, useAuth } from '../services/auth';
 import { DEMO_ONLY } from '../services/data';
@@ -96,7 +96,8 @@ function UserForm({ open, target, selfId, onClose, onSaved }: { open: boolean; t
   const [busy, setBusy] = useState(false);
   const self = target?.id === selfId;
 
-  useEffect(() => {
+  // useLayoutEffect: el formulario se limpia antes de mostrarse, así no se borra lo que se alcance a escribir.
+  useLayoutEffect(() => {
     if (!open) return;
     setUsername(target?.username ?? ''); setFullName(target?.fullName ?? ''); setEmail(target?.email ?? '');
     setRole(target?.role ?? 'PRODUCCION'); setActive(target?.active === false ? 'NO' : 'SI'); setPassword(''); setError(null);

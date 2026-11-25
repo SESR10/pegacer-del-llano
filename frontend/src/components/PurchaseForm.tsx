@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent, useLayoutEffect } from 'react';
 import { LuCheck, LuPlus, LuTrash2 } from 'react-icons/lu';
 import { useData, useStore } from '../services/store';
 import { Modal, useToast } from './ui';
@@ -27,7 +27,8 @@ export default function PurchaseForm({ open, supplierId, onClose }: { open: bool
   const [busy, setBusy] = useState(false);
 
   const blank = (p?: { id: number; unitCost?: number | null }): Line => ({ productId: p?.id ?? 0, qty: '', cost: p?.unitCost != null ? String(p.unitCost) : '' });
-  useEffect(() => {
+  // useLayoutEffect: el formulario se limpia antes de mostrarse, así no se borra lo que se alcance a escribir.
+  useLayoutEffect(() => {
     if (!open) return;
     setSid(supplierId ?? suppliers[0]?.id ?? 0); setInvoice(''); setAt(localNow()); setError(null);
     setLines([blank(buyable[0])]);

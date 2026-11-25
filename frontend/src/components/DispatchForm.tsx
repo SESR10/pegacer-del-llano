@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent, useLayoutEffect } from 'react';
 import { LuCheck, LuPlus, LuTrash2 } from 'react-icons/lu';
 import { useData, useStore } from '../services/store';
 import { Modal, useToast } from './ui';
@@ -24,7 +24,8 @@ export default function DispatchForm({ open, onClose }: { open: boolean; onClose
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
+  // useLayoutEffect: el formulario se limpia antes de mostrarse, así no se borra lo que se alcance a escribir.
+  useLayoutEffect(() => {
     if (!open) return;
     setCustomer(''); setAt(localNow()); setError(null);
     setLines([{ productId: finished[0]?.id ?? 0, qty: '' }]);

@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent, useLayoutEffect } from 'react';
 import { LuCheck, LuMinus } from 'react-icons/lu';
 import { useData, useStore } from '../services/store';
 import { Modal, useToast } from './ui';
@@ -20,7 +20,8 @@ export default function WasteForm({ open, onClose }: { open: boolean; onClose: (
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
+  // useLayoutEffect: el formulario se limpia antes de mostrarse, así no se borra lo que se alcance a escribir.
+  useLayoutEffect(() => {
     if (!open) return;
     setPid(data.products[0]?.id ?? 0); setQty(''); setReason(''); setNotes(''); setBatchId(''); setError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
