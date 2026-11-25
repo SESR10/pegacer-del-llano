@@ -10,6 +10,7 @@ import InventarioPage from './pages/InventarioPage';
 import FormulasPage from './pages/FormulasPage';
 import AlertasPage from './pages/AlertasPage';
 import EnConstruccionPage from './pages/EnConstruccionPage';
+import ReportesPage from './pages/ReportesPage';
 import {
   ComprasPage, DesperdiciosPage, MateriasPrimasPage, ProduccionPage, ProductosPage, ProductoTerminadoPage, ProveedoresPage,
 } from './pages/ListPages';
@@ -44,6 +45,7 @@ function Gate() {
           <Route path="compras" element={<ComprasPage />} />
           <Route path="proveedores" element={<ProveedoresPage />} />
           <Route path="alertas" element={<AlertasPage />} />
+          <Route path="reportes" element={<ReportesPage />} />
           <Route path="*" element={<EnConstruccionPage />} />
         </Route>
       </Routes>

@@ -25,7 +25,7 @@ export const NAV: NavGroup[] = [
   ] },
   { title: 'Análisis', items: [
     { path: '/alertas', label: 'Alertas', icon: LuBell },
-    { path: '/reportes', label: 'Reportes', icon: LuFileBarChart, phase: 14 },
+    { path: '/reportes', label: 'Reportes', icon: LuFileBarChart },
   ] },
   { title: 'Sistema', items: [
     { path: '/usuarios', label: 'Usuarios', icon: LuUsers, phase: 15 },

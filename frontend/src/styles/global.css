@@ -555,3 +555,53 @@ a { color: inherit; }
   .toolbar-end { margin-left: 0; width: 100%; justify-content: center; }
 }
 .forecast-item.ok { border-left-color: var(--green); }
+
+/* Fase 14: reportes */
+.export-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.report-filters { display: grid; gap: 14px; }
+.report-kinds .segmented, .report-period .segmented { flex-wrap: wrap; }
+.report-period { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: flex-end; }
+.date-field { display: grid; gap: 4px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.date-field input { font: inherit; font-size: 13.5px; color: var(--ink); padding: 7px 10px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: #fff; min-height: 38px; }
+.date-field input:focus { outline: 0; border-color: var(--amber); box-shadow: 0 0 0 3px rgba(245, 165, 36, 0.22); }
+.report-period-label { margin: 18px 0 0; font-weight: 600; }
+.report-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.report-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.report-table th { text-align: left; font-weight: 600; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; padding: 10px 12px; background: #f8fafc; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.report-table td { padding: 9px 12px; border-bottom: 1px solid var(--line-2); white-space: nowrap; }
+.report-table th:first-child, .report-table td:first-child { padding-left: 20px; }
+.report-table th:last-child, .report-table td:last-child { padding-right: 20px; }
+.report-table .num { text-align: right; }
+.report-table tfoot td { font-weight: 700; background: #f8fafc; border-top: 2px solid var(--line); border-bottom: 0; }
+.report-note { margin: 0; padding: 10px 20px 14px; }
+.other-costs-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.other-costs-form { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+.other-costs-form .material-input { width: 200px; }
+.other-costs-form .material-input input { width: 100%; font: inherit; font-family: var(--mono); padding: 9px 30px 9px 12px; border: 1px solid #d5dce5; border-radius: var(--radius-sm); min-height: 40px; }
+.print-head { display: none; }
+@media (max-width: 640px) {
+  .export-actions { width: 100%; }
+  .export-actions .btn { flex: 1; justify-content: center; }
+  .report-period .date-field { flex: 1; min-width: 130px; }
+  .date-field input { width: 100%; font-size: 16px; }
+  .report-table th:first-child, .report-table td:first-child { padding-left: 14px; }
+  .report-table td:first-child { position: sticky; left: 0; background: #fff; box-shadow: 1px 0 0 var(--line-2); }
+  .report-table tfoot td:first-child { background: #f8fafc; }
+}
+@media print {
+  @page { size: A4 landscape; margin: 12mm; }
+  body { background: #fff !important; }
+  .sidebar, .topbar, .tabbar, .backdrop, .page-head, .no-print, .toast, .toast-wrap { display: none !important; }
+  .main, .content { margin: 0 !important; padding: 0 !important; max-width: none !important; }
+  .print-head { display: grid; gap: 2px; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 2px solid #172033; }
+  .print-head h2 { margin: 2px 0; font-size: 18px; }
+  .print-head span { font-size: 11px; color: #555; }
+  .card, .kpi { box-shadow: none !important; border: 1px solid #ccc !important; break-inside: avoid; }
+  .report-card { break-inside: auto; }
+  .report-scroll { overflow: visible; }
+  .report-table { font-size: 10px; }
+  .report-table td, .report-table th { padding: 5px 6px; white-space: normal; }
+  .report-table td:first-child { position: static; box-shadow: none; }
+  .grid.kpis { grid-template-columns: repeat(4, 1fr) !important; }
+  .notice { border: 1px solid #e0a800; }
+}
