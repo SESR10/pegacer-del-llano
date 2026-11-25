@@ -1,7 +1,7 @@
 import { useState, type FormEvent, useLayoutEffect } from 'react';
 import { LuCheck, LuPlus, LuTrash2 } from 'react-icons/lu';
 import { useData, useStore } from '../services/store';
-import { Modal, useToast } from './ui';
+import { Modal, useToast, Step } from './ui';
 import { num, unit } from '../utils/format';
 
 const localNow = () => {
@@ -70,6 +70,7 @@ export default function DispatchForm({ open, onClose }: { open: boolean; onClose
   return (
     <Modal open={open} title="Registrar despacho" onClose={onClose} footer={footer}>
       <form id="dispatch-form" className="form" onSubmit={submit} noValidate>
+        <Step n={1}>¿Para quién es el despacho?</Step>
         <div className="form-grid two-cols">
           <label className="field">
             <span>Cliente</span>
@@ -80,8 +81,8 @@ export default function DispatchForm({ open, onClose }: { open: boolean; onClose
             <input type="datetime-local" value={at} max={localNow()} onChange={(e) => setAt(e.target.value)} />
           </label>
         </div>
+        <Step n={2}>¿Cuántas bolsas salen?</Step>
         <div className="field">
-          <span>Productos</span>
           <div className="line-items">
             {lines.map((l, i) => {
               const p = finished.find((x) => x.id === l.productId);

@@ -159,3 +159,25 @@ test('la política de tratamiento de datos se puede consultar', async ({ page })
   await expect(page.getByRole('heading', { name: '5. Derechos del titular' })).toBeVisible();
   await expect(page.getByText('no usa cookies', { exact: false })).toBeVisible();
 });
+
+test('el inicio abre los formularios del día a día con un toque', async ({ page }) => {
+  await go(page, '/');
+  await page.locator('.quick-action', { hasText: 'Despachar bolsas' }).click();
+  await expect(page.locator('#dispatch-form')).toBeVisible();
+  await expect(page.locator('#dispatch-form .step').first()).toContainText('¿Para quién es el despacho?');
+});
+
+test('cada cargo ve solo su parte del menú y sus accesos', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('pegacer.session', JSON.stringify({
+    token: 'x', expiresAt: '2099-01-01T00:00:00Z',
+    user: { id: 9, username: 'op', fullName: 'Carlos Pérez', email: null, role: 'PRODUCCION', roleName: 'Producción' },
+  })));
+  await go(page, '/');
+  await expect(page.locator('.topbar-hello')).toContainText('Hola, Carlos');
+  const nav = page.locator('.nav');
+  await expect(nav.getByRole('link', { name: 'Cochadas', exact: true })).toBeVisible();
+  await expect(nav.getByRole('link', { name: 'Usuarios' })).toHaveCount(0);
+  await expect(nav.getByRole('link', { name: 'Proveedores' })).toHaveCount(0);
+  await expect(page.locator('.quick-action', { hasText: 'Registrar cochada' })).toBeVisible();
+  await expect(page.locator('.quick-action', { hasText: 'Registrar compra' })).toHaveCount(0);
+});

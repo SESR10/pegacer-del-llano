@@ -1,7 +1,7 @@
 import { useState, type FormEvent, useLayoutEffect } from 'react';
 import { LuCheck, LuPlus, LuTrash2 } from 'react-icons/lu';
 import { useData, useStore } from '../services/store';
-import { Modal, useToast } from './ui';
+import { Modal, useToast, Step } from './ui';
 import { money, num, unit } from '../utils/format';
 
 const localNow = () => {
@@ -71,6 +71,7 @@ export default function PurchaseForm({ open, supplierId, onClose }: { open: bool
   return (
     <Modal open={open} title="Registrar compra" onClose={onClose} footer={footer} wide>
       <form id="purchase-form" className="form" onSubmit={submit} noValidate>
+        <Step n={1}>¿A quién se le compró?</Step>
         <div className="form-grid">
           <label className="field">
             <span>Proveedor</span>
@@ -87,8 +88,8 @@ export default function PurchaseForm({ open, supplierId, onClose }: { open: bool
             <input type="datetime-local" value={at} max={localNow()} onChange={(e) => setAt(e.target.value)} />
           </label>
         </div>
+        <Step n={2}>¿Qué llegó y cuánto?</Step>
         <div className="field">
-          <span>Productos</span>
           <div className="line-items">
             {lines.map((l, i) => {
               const p = buyable.find((x) => x.id === l.productId);

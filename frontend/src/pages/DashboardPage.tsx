@@ -1,18 +1,44 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { LuFactory, LuPackageCheck, LuTrendingUp, LuBell, LuAlertTriangle, LuAlertCircle, LuPlus, LuArrowRight } from 'react-icons/lu';
+import { LuFactory, LuPackageCheck, LuTrendingUp, LuBell, LuAlertTriangle, LuAlertCircle, LuArrowRight, LuShoppingCart, LuTruck, LuMinusCircle, LuSlidersHorizontal, LuFileBarChart, LuWarehouse } from 'react-icons/lu';
+import type { IconType } from 'react-icons';
 import { useData } from '../services/store';
 import { useAuth } from '../services/auth';
 import { Card, Chip, Empty, Kpi, PageHead, StockBar } from '../components/ui';
 import ProductionChart from '../components/ProductionChart';
 import BatchForm from '../components/BatchForm';
+import PurchaseForm from '../components/PurchaseForm';
+import DispatchForm from '../components/DispatchForm';
+import WasteForm from '../components/WasteForm';
+import AdjustForm from '../components/AdjustForm';
 import { num, unit, dateTime } from '../utils/format';
 import { activeFormula, batchStatus, can, formulaOf, productionByDay, recentBatches, stockStatus, toleranceOf } from '../utils/metrics';
+
+type FormKind = 'cochada' | 'compra' | 'despacho' | 'desperdicio' | 'ajuste';
+type Tone = 'info' | 'ok' | 'warn' | 'bad' | 'neutral';
+
+/** Lo que se registra en el día a día. Cada persona ve solo lo que su cargo puede hacer. */
+const ACTIONS: { kind: FormKind; title: string; hint: string; icon: IconType; tone: Tone; permission: Parameters<typeof can>[1] }[] = [
+  { kind: 'cochada', title: 'Registrar cochada', hint: 'Una mezcla terminada y lo que gastó', icon: LuFactory, tone: 'warn', permission: 'cochadas' },
+  { kind: 'despacho', title: 'Despachar bolsas', hint: 'Bolsas que salen para un cliente', icon: LuTruck, tone: 'info', permission: 'operaciones' },
+  { kind: 'compra', title: 'Registrar compra', hint: 'Material que llegó del proveedor', icon: LuShoppingCart, tone: 'ok', permission: 'compras' },
+  { kind: 'desperdicio', title: 'Registrar desperdicio', hint: 'Material dañado o perdido', icon: LuMinusCircle, tone: 'bad', permission: 'operaciones' },
+  { kind: 'ajuste', title: 'Corregir inventario', hint: 'Cuando el conteo no cuadra', icon: LuSlidersHorizontal, tone: 'neutral', permission: 'inventario' },
+];
+
+/** Para quien solo consulta (Gerencia). */
+const CONSULT: { to: string; title: string; hint: string; icon: IconType; tone: Tone }[] = [
+  { to: '/reportes', title: 'Ver reportes', hint: 'Producción, costos e inventario', icon: LuFileBarChart, tone: 'info' },
+  { to: '/inventario', title: 'Ver inventario', hint: 'Cuánto hay de cada material', icon: LuWarehouse, tone: 'ok' },
+  { to: '/alertas', title: 'Ver alertas', hint: 'Lo que necesita atención', icon: LuBell, tone: 'bad' },
+];
 
 export default function DashboardPage() {
   const data = useData();
   const { user } = useAuth();
-  const [form, setForm] = useState(false);
+  const [form, setForm] = useState<FormKind | null>(null);
+  const role = user?.role;
+  const actions = ACTIONS.filter((a) => can(role, a.permission));
 
   const batches = recentBatches(data, 30);
   const days = productionByDay(batches, 30);
@@ -29,11 +55,24 @@ export default function DashboardPage() {
 
   return (
     <>
-      <PageHead
-        title="Resumen de la planta"
-        subtitle="Producción, inventario y alertas de los últimos 30 días."
-        actions={can(user?.role, 'cochadas') && <button type="button" className="btn-primary" onClick={() => setForm(true)}><LuPlus /> Registrar cochada</button>}
-      />
+      <PageHead title={actions.length ? '¿Qué va a hacer hoy?' : '¿Qué quiere revisar hoy?'}
+        subtitle={`Toque una opción para ${actions.length ? 'registrarla' : 'abrirla'}. Abajo está el resumen de la planta.`} />
+
+      <div className="quick-actions">
+        {actions.length ? actions.map((a) => (
+          <button key={a.kind} type="button" className="quick-action" onClick={() => setForm(a.kind)}>
+            <span className={`quick-icon ${a.tone}`}><a.icon /></span>
+            <span className="quick-text"><strong>{a.title}</strong><span>{a.hint}</span></span>
+          </button>
+        )) : CONSULT.map((a) => (
+          <Link key={a.to} to={a.to} className="quick-action">
+            <span className={`quick-icon ${a.tone}`}><a.icon /></span>
+            <span className="quick-text"><strong>{a.title}</strong><span>{a.hint}</span></span>
+          </Link>
+        ))}
+      </div>
+
+      <h2 className="section-title">Resumen de los últimos 30 días</h2>
 
       <div className="grid kpis">
         <Kpi icon={<LuPackageCheck />} tone="info" label="Bolsas producidas" value={num(bags, 0)}
@@ -102,7 +141,11 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      <BatchForm open={form} onClose={() => setForm(false)} />
+      <BatchForm open={form === 'cochada'} onClose={() => setForm(null)} />
+      <PurchaseForm open={form === 'compra'} onClose={() => setForm(null)} />
+      <DispatchForm open={form === 'despacho'} onClose={() => setForm(null)} />
+      <WasteForm open={form === 'desperdicio'} onClose={() => setForm(null)} />
+      <AdjustForm open={form === 'ajuste'} onClose={() => setForm(null)} />
     </>
   );
 }

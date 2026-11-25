@@ -1,7 +1,7 @@
 import { useState, type FormEvent, useLayoutEffect } from 'react';
 import { LuCheck, LuMinus, LuPlus } from 'react-icons/lu';
 import { useData, useStore } from '../services/store';
-import { Modal, Segmented, useToast } from './ui';
+import { Modal, Segmented, useToast, Step } from './ui';
 import { num, unit } from '../utils/format';
 
 const parse = (v: string) => (v.trim() === '' ? NaN : Number(v.replace(',', '.')));
@@ -60,13 +60,15 @@ export default function AdjustForm({ open, productId, onClose }: { open: boolean
   return (
     <Modal open={open} title="Ajustar inventario" onClose={onClose} footer={footer}>
       <form id="adjust-form" className="form" onSubmit={submit} noValidate>
-        <p className="muted m0">Para conteos físicos o correcciones. Las compras, cochadas y despachos se registran en su propio módulo.</p>
+        <p className="muted m0">Úselo solo cuando el conteo físico no cuadra con el sistema. Las compras, cochadas y despachos se registran desde su propio botón.</p>
+        <Step n={1}>¿Qué producto?</Step>
         <label className="field">
           <span>Producto</span>
           <select value={pid} onChange={(e) => setPid(Number(e.target.value))}>
             {data.products.map((p) => <option key={p.id} value={p.id}>{p.name} ({num(p.stock, 2)} {unit(p.unit)})</option>)}
           </select>
         </label>
+        <Step n={2}>¿Sobra o falta, y cuánto?</Step>
         <div className="field">
           <span>Tipo de ajuste</span>
           <Segmented value={dir} onChange={setDir} options={[{ value: 'AJUSTE_POS', label: 'Sumar (+)' }, { value: 'AJUSTE_NEG', label: 'Restar (−)' }]} />
@@ -82,8 +84,8 @@ export default function AdjustForm({ open, productId, onClose }: { open: boolean
             <div><span className="muted small">Quedará en</span><strong className={`mono ${after !== null && after < 0 ? 'neg' : ''}`}>{after === null ? '—' : num(after, 3)}</strong></div>
           </div>
         )}
+        <Step n={3}>¿Por qué?</Step>
         <div className="field">
-          <span>Motivo</span>
           <div className="quick-reasons">
             {REASONS.map((r) => <button type="button" key={r} className={notes === r ? 'on' : ''} onClick={() => setNotes(r)}>{r}</button>)}
           </div>

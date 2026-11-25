@@ -118,7 +118,7 @@ export function ProductoTerminadoPage() {
   ];
   return (
     <>
-      <InventarioPage only={['PRODUCTO_TERMINADO']} title="Producto terminado" subtitle="Bolsas listas para despacho y sus salidas."
+      <InventarioPage only={['PRODUCTO_TERMINADO']} title="Bodega y despachos" subtitle="Bolsas de pegante listas para vender y lo que ya salió de la bodega."
         actions={can(user?.role, 'operaciones') && <button type="button" className="btn-primary" onClick={() => setForm(true)}><LuTruck /> Registrar despacho</button>} />
       <DispatchForm open={form} onClose={() => setForm(false)} />
       <div className="grid kpis small-kpis mt">

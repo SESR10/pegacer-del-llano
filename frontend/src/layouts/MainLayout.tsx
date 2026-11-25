@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { LuMenu, LuLogOut, LuBell, LuMoreHorizontal, LuRefreshCw } from 'react-icons/lu';
-import { ALL_ITEMS, MOBILE_TABS, NAV } from './nav';
+import { ALL_ITEMS, mobileTabs, navFor } from './nav';
 import { LOGIN_REQUIRED, useAuth } from '../services/auth';
 import { useStore } from '../services/store';
 import { Spinner } from '../components/ui';
@@ -14,7 +14,9 @@ export default function MainLayout() {
   const { data, error, live, reload } = useStore();
   const { pathname } = useLocation();
   const current = ALL_ITEMS.find((i) => i.path === pathname) ?? ALL_ITEMS[0];
-  const group = NAV.find((g) => g.items.includes(current))?.title;
+  const nav = navFor(user?.role);
+  const tabs = mobileTabs(user?.role);
+  const firstName = user?.fullName.split(/\s+/)[0];
   const alerts = data?.alerts.length ?? 0;
 
   useEffect(() => { setOpen(false); window.scrollTo(0, 0); }, [pathname]);
@@ -31,7 +33,7 @@ export default function MainLayout() {
         </div>
         <div className="hazard" />
         <nav className="nav">
-          {NAV.map((g) => (
+          {nav.map((g) => (
             <div key={g.title}>
               <div className="nav-group">{g.title}</div>
               {g.items.map((it) => (
@@ -57,9 +59,10 @@ export default function MainLayout() {
       <div className="main">
         <header className="topbar">
           <button className="icon-btn menu-btn" aria-label="Abrir menú" onClick={() => setOpen(true)}><LuMenu /></button>
+          {/* En el celular, el nombre de la pantalla; en el computador ya está en el título de la página, así que se saluda. */}
           <div className="topbar-title">
-            {group && <span className="crumb">{group}</span>}
-            <h1>{current.label}</h1>
+            <span className="topbar-page">{current.label}</span>
+            <span className="topbar-hello">{firstName ? `Hola, ${firstName}` : 'Bienvenido'}{user?.roleName && <em> · {user.roleName}</em>}</span>
           </div>
           <span className={`status-pill ${live ? 'live' : 'demo'}`}><i />{live ? 'En línea' : 'Demostración'}</span>
           <Link to="/alertas" className="icon-btn bell" aria-label={`Alertas: ${alerts}`}>
@@ -79,7 +82,7 @@ export default function MainLayout() {
       </div>
 
       <nav className="tabbar" aria-label="Accesos rápidos">
-        {MOBILE_TABS.map((path) => {
+        {tabs.map((path) => {
           const it = ALL_ITEMS.find((i) => i.path === path)!;
           return (
             <NavLink key={path} to={path} end={path === '/'}>
@@ -88,7 +91,7 @@ export default function MainLayout() {
             </NavLink>
           );
         })}
-        <button type="button" onClick={() => setOpen(true)} className={MOBILE_TABS.includes(pathname) ? '' : 'active'}>
+        <button type="button" onClick={() => setOpen(true)} className={tabs.includes(pathname) ? '' : 'active'}>
           <span className="tab-icon"><LuMoreHorizontal /></span>Más
         </button>
       </nav>
