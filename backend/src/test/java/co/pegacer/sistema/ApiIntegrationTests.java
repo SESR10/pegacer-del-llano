@@ -181,6 +181,34 @@ class ApiIntegrationTests {
     }
 
     @Test
+    void adminEditsUsersAndUsersChangeTheirOwnPassword() throws Exception {
+        long id = q("SELECT id FROM users WHERE username = 'compras'", Long.class);
+        // El administrador cambia rol, desactiva y luego reactiva con contraseña nueva
+        mvc.perform(as("admin", put("/api/users/" + id)).content("""
+                {"fullName":"Compras Nuevo","role":"GERENCIA","active":false}"""))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.data.role").value("GERENCIA"))
+           .andExpect(jsonPath("$.data.active").value(false));
+        mvc.perform(post("/api/auth/login").contentType("application/json").content("""
+                {"username":"compras","password":"Demo2026*"}""")).andExpect(status().is4xxClientError());
+        mvc.perform(as("admin", put("/api/users/" + id)).content("""
+                {"fullName":"Compras Nuevo","role":"COMPRAS","active":true,"password":"Nueva2026*"}"""))
+           .andExpect(status().isOk());
+        mvc.perform(post("/api/auth/login").contentType("application/json").content("""
+                {"username":"compras","password":"Nueva2026*"}""")).andExpect(status().isOk());
+        // El administrador no puede quitarse su propio rol
+        long admin = q("SELECT id FROM users WHERE username = 'admin'", Long.class);
+        mvc.perform(as("admin", put("/api/users/" + admin)).content("""
+                {"fullName":"Admin","role":"GERENCIA","active":true}""")).andExpect(status().isBadRequest());
+        // Cada usuario cambia su contraseña con la actual
+        mvc.perform(as("inventario", post("/api/auth/change-password")).content("""
+                {"currentPassword":"mala","newPassword":"OtraClave2026"}""")).andExpect(status().is4xxClientError());
+        mvc.perform(as("inventario", post("/api/auth/change-password")).content("""
+                {"currentPassword":"Demo2026*","newPassword":"OtraClave2026"}""")).andExpect(status().isOk());
+        assertThat(q("SELECT count(*) FROM audit_log WHERE action = 'CAMBIAR_CONTRASENA'", Integer.class)).isPositive();
+    }
+
+    @Test
     void userWithoutValidRoleIsRejected() throws Exception {
         mvc.perform(as("admin", post("/api/users")).content("""
                 {"username":"sinrol","fullName":"Sin Rol","role":"JEFE","password":"Clave2026!"}"""))
