@@ -1,10 +1,15 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { LuCheckCircle2, LuX, LuInbox } from 'react-icons/lu';
 
+/** Paso numerado dentro de un formulario: guía a la persona en orden ("1. ¿Qué…?", "2. ¿Cuánto…?"). */
+export function Step({ n, children, optional }: { n: number; children: ReactNode; optional?: boolean }) {
+  return <h4 className="step"><span className="step-n">{n}</span>{children}{optional && <em>(opcional)</em>}</h4>;
+}
+
 export function PageHead({ title, subtitle, actions }: { title: string; subtitle?: string; actions?: ReactNode }) {
   return (
     <div className="page-head">
-      <div className="page-head-text"><h2>{title}</h2>{subtitle && <p>{subtitle}</p>}</div>
+      <div className="page-head-text"><h1>{title}</h1>{subtitle && <p>{subtitle}</p>}</div>
       {actions && <div className="page-actions">{actions}</div>}
     </div>
   );

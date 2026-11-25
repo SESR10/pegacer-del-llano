@@ -1,7 +1,7 @@
 import { useState, type FormEvent, useLayoutEffect } from 'react';
 import { LuCheck, LuMinus } from 'react-icons/lu';
 import { useData, useStore } from '../services/store';
-import { Modal, useToast } from './ui';
+import { Modal, useToast, Step } from './ui';
 import { date, num, unit } from '../utils/format';
 
 const parse = (v: string) => (v.trim() === '' ? NaN : Number(v.replace(',', '.')));
@@ -61,6 +61,7 @@ export default function WasteForm({ open, onClose }: { open: boolean; onClose: (
   return (
     <Modal open={open} title="Registrar desperdicio" onClose={onClose} footer={footer}>
       <form id="waste-form" className="form" onSubmit={submit} noValidate>
+        <Step n={1}>¿Qué se perdió y cuánto?</Step>
         <div className="form-grid two-cols">
           <label className="field">
             <span>Producto</span>
@@ -80,13 +81,14 @@ export default function WasteForm({ open, onClose }: { open: boolean; onClose: (
             <div><span className="muted small">Quedará en</span><strong className={`mono ${after !== null && after < 0 ? 'neg' : ''}`}>{after === null ? '—' : num(after, 3)}</strong></div>
           </div>
         )}
+        <Step n={2}>¿Por qué se perdió?</Step>
         <div className="field">
-          <span>Motivo</span>
           <div className="quick-reasons">
             {REASONS.map((r) => <button type="button" key={r} className={reason === r ? 'on' : ''} onClick={() => setReason(r)}>{r}</button>)}
           </div>
           <input value={reason} maxLength={120} onChange={(e) => setReason(e.target.value)} placeholder="Ej: bolsas rotas en el cargue" aria-label="Motivo" />
         </div>
+        <Step n={3} optional>Más detalles</Step>
         <div className="form-grid two-cols">
           <label className="field">
             <span>Cochada <em>(opcional)</em></span>

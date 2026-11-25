@@ -2,7 +2,7 @@ import { useMemo, useState, type FormEvent, useLayoutEffect } from 'react';
 import { LuCheck, LuWand2 } from 'react-icons/lu';
 import { useData, useStore } from '../services/store';
 import type { Batch } from '../services/types';
-import { Chip, Modal, useToast } from './ui';
+import { Chip, Modal, Step, useToast } from './ui';
 import { num, pct, unit } from '../utils/format';
 import { toleranceOf } from '../utils/metrics';
 
@@ -80,6 +80,7 @@ export default function BatchForm({ open, onClose, onCreated }: { open: boolean;
         <div className="notice">No hay fórmulas activas. Registre una fórmula antes de producir.</div>
       ) : (
         <form id="batch-form" className="form" onSubmit={submit} noValidate>
+          <Step n={1}>¿Qué se mezcló y cuántas bolsas salieron?</Step>
           <div className="form-grid">
             <label className="field">
               <span>Fórmula</span>
@@ -106,8 +107,8 @@ export default function BatchForm({ open, onClose, onCreated }: { open: boolean;
           <div className="form-section">
             <div className="form-section-head">
               <div>
-                <h4>Consumo real de materiales</h4>
-                <p className="muted small">Lo que realmente se usó en la mezcla. Variación permitida: ±{tolerance} %.</p>
+                <Step n={2}>¿Cuánto material se gastó?</Step>
+                <p className="muted small">Lo que realmente se usó en la mezcla. Si fue lo mismo de la fórmula, toque el botón. Se permite una diferencia de ±{tolerance} %.</p>
               </div>
               <button type="button" className="btn small" onClick={() => setReal(Object.fromEntries(items.map((i) => [i.productId, String(i.quantity)])))}>
                 <LuWand2 /> Igual a la fórmula
@@ -140,6 +141,7 @@ export default function BatchForm({ open, onClose, onCreated }: { open: boolean;
             </div>
           </div>
 
+          <Step n={3} optional>¿Algo para anotar?</Step>
           <label className="field">
             <span>Observaciones <em>(opcional)</em></span>
             <textarea rows={2} maxLength={500} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Ej: turno de la mañana, mezcladora 2" />
