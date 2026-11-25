@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent, useLayoutEffect } from 'react';
 import { LuCheck, LuPlus, LuTrash2 } from 'react-icons/lu';
 import { useData, useStore } from '../services/store';
 import type { Formula } from '../services/types';
@@ -30,7 +30,8 @@ export default function FormulaForm({ open, base, productId, onClose }: { open: 
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
+  // useLayoutEffect: el formulario se limpia antes de mostrarse, así no se borra lo que se alcance a escribir.
+  useLayoutEffect(() => {
     if (!open) return;
     const product = base ? (finished.find((p) => p.id === base.productId || p.name === base.product)) : finished.find((p) => p.id === productId) ?? finished[0];
     setPid(product?.id);

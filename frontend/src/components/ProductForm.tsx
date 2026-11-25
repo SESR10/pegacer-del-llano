@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent, useLayoutEffect } from 'react';
 import { LuCheck, LuTrash2 } from 'react-icons/lu';
 import { useStore } from '../services/store';
 import type { Category, Product } from '../services/types';
@@ -24,7 +24,8 @@ export default function ProductForm({ open, product, onClose }: { open: boolean;
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  useEffect(() => {
+  // useLayoutEffect: el formulario se limpia antes de mostrarse, así no se borra lo que se alcance a escribir.
+  useLayoutEffect(() => {
     if (!open) return;
     setCode(product?.code ?? ''); setName(product?.name ?? ''); setCategory(product?.category ?? 'MATERIA_PRIMA');
     setUnitCode(product?.unit ?? 'KG'); setMinStock(product ? String(product.minStock) : '');

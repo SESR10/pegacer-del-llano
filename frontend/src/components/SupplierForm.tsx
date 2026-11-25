@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent, useLayoutEffect } from 'react';
 import { LuCheck } from 'react-icons/lu';
 import { useStore } from '../services/store';
 import type { Supplier } from '../services/types';
@@ -19,7 +19,8 @@ export default function SupplierForm({ open, supplier, onClose }: { open: boolea
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
+  // useLayoutEffect: el formulario se limpia antes de mostrarse, así no se borra lo que se alcance a escribir.
+  useLayoutEffect(() => {
     if (!open) return;
     setNit(supplier?.nit ?? ''); setName(supplier?.name ?? ''); setPhone(clean(supplier?.phone)); setEmail(clean(supplier?.email));
     setCity(clean(supplier?.city)); setActive(supplier?.active === false ? 'NO' : 'SI'); setError(null);
