@@ -25,6 +25,11 @@ app:
   jwt:
     secret: ${JWT_SECRET:cambiar-este-secreto-de-desarrollo-minimo-32-caracteres}
     expiration-minutes: ${JWT_EXPIRATION_MINUTES:480}
+  # Solo perfil prod, y solo si la base no tiene usuarios: crea el primer Administrador.
+  admin:
+    usuario: ${ADMIN_USUARIO:}
+    contrasena: ${ADMIN_CONTRASENA:}
+    nombre: ${ADMIN_NOMBRE:Administrador}
 
 springdoc:
   swagger-ui.path: /swagger-ui.html
@@ -33,3 +38,11 @@ spring:
   config.activate.on-profile: demo
   flyway:
     locations: classpath:db/migration,classpath:db/demo
+---
+# Producción: solo el esquema (sin datos DEMO) y sin Swagger público.
+# Ver docs/PRODUCCION.md. Necesita una base nueva: Flyway se niega a arrancar sobre una base que ya tiene la migración DEMO.
+spring:
+  config.activate.on-profile: prod
+springdoc:
+  api-docs.enabled: false
+  swagger-ui.enabled: false

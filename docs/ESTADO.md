@@ -44,5 +44,5 @@ Todos los usuarios con sesión pueden **consultar** todo. Para **modificar**:
 
 ## Siguiente paso
 
-Las 16 fases del plan están hechas. Antes de usarlo con datos reales: perfil de producción, usuarios reales (cambiar las contraseñas DEMO) y copias de seguridad de PostgreSQL.
-Antes de usarlo con datos reales: perfil de producción, usuarios reales y copias de seguridad de PostgreSQL.
+Las 16 fases del plan están hechas. Para usarlo con datos reales está el perfil `prod` (sin datos DEMO, primer administrador
+por variables de entorno). Pasos en Railway y copias de seguridad en [PRODUCCION.md](PRODUCCION.md).
