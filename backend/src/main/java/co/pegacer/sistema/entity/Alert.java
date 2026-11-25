@@ -27,6 +27,11 @@ public class Alert {
     private Instant createdAt;
     @Column(name = "is_demo", nullable = false)
     private boolean demo;
+    @Column(name = "resolved_at")
+    private Instant resolvedAt;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "resolved_by")
+    private AppUser resolvedBy;
 
     protected Alert() { }
 
@@ -47,6 +52,14 @@ public class Alert {
     public String getMessage() { return message; }
     public boolean isResolved() { return resolved; }
     public void setResolved(boolean resolved) { this.resolved = resolved; }
+    /** Marca la alerta como atendida ahora; sin usuario cuando el sistema la cierra solo. */
+    public void resolve(AppUser by) {
+        this.resolved = true;
+        this.resolvedAt = Instant.now();
+        this.resolvedBy = by;
+    }
+    public Instant getResolvedAt() { return resolvedAt; }
+    public AppUser getResolvedBy() { return resolvedBy; }
     public Instant getCreatedAt() { return createdAt; }
     public boolean isDemo() { return demo; }
 }

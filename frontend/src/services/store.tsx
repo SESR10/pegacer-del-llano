@@ -23,6 +23,8 @@ const mapBatch = (b: any): Batch => ({
   consumptions: b.consumptions.map((c: any) => ({ productId: c.productId, theoretical: n(c.theoretical), real: n(c.real), variationPct: n(c.variationPct) })),
 });
 const mapSupplier = (s: any): Supplier => ({ id: s.id, nit: s.nit, name: s.name, phone: s.phone ?? '—', city: s.city ?? '—', email: s.email ?? null, active: s.active });
+const mapAlert = (a: any): Alert => ({ id: a.id, type: a.type, severity: a.severity, message: a.message, at: a.createdAt,
+  productId: a.productId, batchCode: a.batchCode, resolvedAt: a.resolvedAt, resolvedBy: a.resolvedBy });
 const mapMovement = (m: any): Movement => ({
   id: m.id, productId: m.productId, type: m.type, quantity: n(m.quantity), before: n(m.stockBefore), after: n(m.stockAfter),
   refType: m.referenceType, at: m.createdAt, user: m.user, notes: m.notes,
@@ -55,7 +57,7 @@ async function loadLive(): Promise<Snapshot> {
     }))),
     waste: waste.content.map((w) => ({ productId: w.productId, quantity: n(w.quantity), reason: w.reason, at: w.recordedAt })),
     suppliers: suppliers.map(mapSupplier),
-    alerts: alerts.map((a): Alert => ({ id: a.id, type: a.type, severity: a.severity, message: a.message, at: a.createdAt })),
+    alerts: alerts.map(mapAlert),
     settings,
   };
 }
@@ -73,7 +75,8 @@ interface Store {
   live: boolean;
   reload: () => Promise<void>;
   registerBatch: (input: BatchInput) => Promise<Batch>;
-  resolveAlert: (id: number) => Promise<void>;
+  resolveAlerts: (ids: number[]) => Promise<number>;
+  resolvedAlerts: () => Promise<Alert[]>;
   kardex: (productId: number) => Promise<Movement[]>;
   catalogs: Catalogs;
   saveProduct: (input: ProductInput, id?: number) => Promise<Product>;
@@ -220,9 +223,29 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return created;
   }, [reload]);
 
-  const resolveAlert = useCallback(async (id: number) => {
-    if (!DEMO_ONLY) await apiFetch(`/api/alerts/${id}/resolve`, { method: 'PATCH' });
-    setData((prev) => prev && { ...prev, alerts: prev.alerts.filter((a) => a.id !== id) });
+  /** Demostración: alertas atendidas en esta sesión (con servidor se piden al API). */
+  const demoResolved = useRef<Alert[]>([]);
+  const resolveAlerts = useCallback(async (ids: number[]) => {
+    if (!DEMO_ONLY) {
+      const n = await apiFetch<number>('/api/alerts/resolve', { method: 'POST', body: JSON.stringify({ ids }) });
+      await reload();
+      return n;
+    }
+    let n = 0;
+    mutate((s) => {
+      const at = new Date().toISOString();
+      const done = s.alerts.filter((a) => ids.includes(a.id));
+      n = done.length;
+      demoResolved.current = [...done.map((a) => ({ ...a, resolvedAt: at, resolvedBy: 'Usuario DEMO' })), ...demoResolved.current];
+      s.alerts = s.alerts.filter((a) => !ids.includes(a.id));
+    });
+    return n;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reload]);
+
+  const resolvedAlerts = useCallback(async () => {
+    if (DEMO_ONLY) return demoResolved.current;
+    return (await apiFetch<unknown[]>('/api/alerts?resolved=true')).map(mapAlert);
   }, []);
 
   const kardex = useCallback(async (productId: number) => {
@@ -370,7 +393,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [reload]);
 
   return (
-    <StoreContext.Provider value={{ data, error, live: !DEMO_ONLY, reload, registerBatch, resolveAlert, kardex, catalogs, saveProduct, deleteProduct, adjust, saveFormula, activateFormula, updateSetting, registerDispatch, registerWaste, registerPurchase, saveSupplier }}>
+    <StoreContext.Provider value={{ data, error, live: !DEMO_ONLY, reload, registerBatch, resolveAlerts, resolvedAlerts, kardex, catalogs, saveProduct, deleteProduct, adjust, saveFormula, activateFormula, updateSetting, registerDispatch, registerWaste, registerPurchase, saveSupplier }}>
       {children}
     </StoreContext.Provider>
   );
