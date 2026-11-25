@@ -16,12 +16,12 @@ Sirve igual en Railway, Render o un servidor propio con Docker.
 | `DB_URL` | `jdbc:postgresql://<host>:<puerto>/<base>` (formato JDBC, no `postgres://`) |
 | `DB_USER` / `DB_PASSWORD` | Usuario y contraseña de la base |
 | `JWT_SECRET` | Texto aleatorio largo (mínimo 32 caracteres). Nunca el de desarrollo. |
-| `SPRING_PROFILES_ACTIVE` | `demo` para la versión de prueba (carga datos y usuarios DEMO). |
+| `SPRING_PROFILES_ACTIVE` | `demo` para la versión de prueba (carga datos y usuarios DEMO) o `prod` para uso real. |
 | `PORT` | Lo pone el proveedor; el sistema lo respeta. |
 
 `CORS_ORIGINS` no hace falta porque la pantalla se sirve desde el mismo servidor.
 
 ## Antes del uso real
 
-- Con `SPRING_PROFILES_ACTIVE=prod` no se cargan datos ni usuarios DEMO: hay que crear el primer administrador.
-- Activar copias de seguridad automáticas de la base de datos en el proveedor.
+Ver [PRODUCCION.md](PRODUCCION.md): perfil `prod` (base nueva, sin datos DEMO), primer administrador con
+`ADMIN_USUARIO` / `ADMIN_CONTRASENA` y copias de seguridad.

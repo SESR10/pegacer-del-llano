@@ -51,6 +51,7 @@ mvn spring-boot:run
 ```
 
 Al arrancar, Flyway crea las tablas y (perfil `demo`, activo por defecto) carga los datos de demostración.
+Para uso real se usa el perfil `prod` (sin datos DEMO): ver [docs/PRODUCCION.md](docs/PRODUCCION.md).
 
 - API: http://localhost:8080
 - Salud: http://localhost:8080/api/health
