@@ -1,8 +1,13 @@
+import { useState } from 'react';
+import { LuAlertTriangle, LuFactory, LuMinusCircle, LuTruck } from 'react-icons/lu';
 import { useData } from '../services/store';
+import { useAuth } from '../services/auth';
 import type { Dispatch, Purchase, Supplier, Waste } from '../services/types';
-import { Card, Kpi, PageHead, Table, type Column } from '../components/ui';
+import { Card, Chip, Kpi, PageHead, Table, type Column } from '../components/ui';
+import DispatchForm from '../components/DispatchForm';
+import WasteForm from '../components/WasteForm';
 import { date, dateTime, num, unit } from '../utils/format';
-import { productionByDay, recentBatches } from '../utils/metrics';
+import { can, capacity, productionByDay, recentBatches } from '../utils/metrics';
 import InventarioPage from './InventarioPage';
 
 export function ComprasPage() {
@@ -44,6 +49,8 @@ export function ProveedoresPage() {
 
 export function DesperdiciosPage() {
   const data = useData();
+  const { user } = useAuth();
+  const [form, setForm] = useState(false);
   const product = (id: number) => data.products.find((p) => p.id === id);
   const columns: Column<Waste & { i: number }>[] = [
     { key: 'product', label: 'Producto', primary: true, render: (w) => <span className="strong">{product(w.productId)?.name}</span> },
@@ -53,7 +60,9 @@ export function DesperdiciosPage() {
   ];
   return (
     <>
-      <PageHead title="Desperdicios" subtitle="Material perdido por daños o defectos. Se descuenta del inventario." />
+      <PageHead title="Desperdicios" subtitle="Material perdido por daños o defectos. Se descuenta del inventario."
+        actions={can(user?.role, 'operaciones') && <button type="button" className="btn-primary" onClick={() => setForm(true)}><LuMinusCircle /> Registrar desperdicio</button>} />
+      <WasteForm open={form} onClose={() => setForm(false)} />
       <Card flush><Table columns={columns} rows={data.waste.map((w, i) => ({ ...w, i }))} rowKey={(w) => w.i} empty="No hay desperdicios registrados." /></Card>
     </>
   );
@@ -61,6 +70,8 @@ export function DesperdiciosPage() {
 
 export function ProductoTerminadoPage() {
   const data = useData();
+  const { user } = useAuth();
+  const [form, setForm] = useState(false);
   const sold = data.dispatches.reduce((s, d) => s + d.quantity, 0);
   const columns: Column<Dispatch>[] = [
     { key: 'customer', label: 'Cliente', primary: true, render: (d) => <span className="strong">{d.customer}</span> },
@@ -70,7 +81,9 @@ export function ProductoTerminadoPage() {
   ];
   return (
     <>
-      <InventarioPage only={['PRODUCTO_TERMINADO']} title="Producto terminado" subtitle="Bolsas listas para despacho y sus salidas." />
+      <InventarioPage only={['PRODUCTO_TERMINADO']} title="Producto terminado" subtitle="Bolsas listas para despacho y sus salidas."
+        actions={can(user?.role, 'operaciones') && <button type="button" className="btn-primary" onClick={() => setForm(true)}><LuTruck /> Registrar despacho</button>} />
+      <DispatchForm open={form} onClose={() => setForm(false)} />
       <div className="grid kpis small-kpis mt">
         <Kpi label="Despachos" value={data.dispatches.length} />
         <Kpi label="Bolsas despachadas" value={num(sold, 0)} sub={`${num(sold * 25 / 1000, 1)} toneladas`} />
@@ -92,6 +105,7 @@ export function ProduccionPage() {
     weeks[w].bags += d.bags; weeks[w].batches += d.batches;
   });
   const total = days.reduce((s, d) => s + d.bags, 0);
+  const caps = capacity(data);
   const columns: Column<(typeof weeks)[number]>[] = [
     { key: 'w', label: 'Semana', primary: true, render: (w) => <span className="strong">{w.label}</span> },
     { key: 'b', label: 'Cochadas', num: true, render: (w) => w.batches },
@@ -107,6 +121,33 @@ export function ProduccionPage() {
         <Kpi label="Días con producción" value={days.filter((d) => d.bags).length} />
         <Kpi label="Mejor día" value={num(Math.max(...days.map((d) => d.bags)), 0)} sub="bolsas" />
       </div>
+      {caps.map((c) => (
+        <Card key={c.formula.id} className="mt capacity" title={<><LuFactory /> ¿Cuántas cochadas puedo fabricar?</>}
+          extra={<span className="muted small">{c.formula.name}</span>}>
+          <div className="capacity-head">
+            <div><span className="capacity-n mono">{num(c.batches, 0)}</span><span className="muted">cochadas completas</span></div>
+            <div><span className="capacity-n mono">{num(c.estimatedBags, 0)}</span><span className="muted">bolsas estimadas ({num(c.estimatedBags * c.formula.bagWeightKg / 1000, 1)} t)</span></div>
+            {c.limiting && (
+              <div className="capacity-limit">
+                <Chip tone={c.batches === 0 ? 'bad' : c.batches < 5 ? 'warn' : 'info'}><LuAlertTriangle /> Limita: {c.limiting.name}</Chip>
+                <span className="muted small">Con más {c.limiting.name.toLowerCase()} se podría producir más.</span>
+              </div>
+            )}
+          </div>
+          <div className="capacity-list">
+            {c.materials.map((m) => {
+              const max = Math.max(...c.materials.map((x) => (Number.isFinite(x.batches) ? x.batches : 0)), 1);
+              return (
+                <div key={m.productId} className={`capacity-row ${m.limiting ? 'limiting' : ''}`}>
+                  <div className="capacity-name"><strong>{m.name}</strong><span className="muted small">{num(m.stock, 2)} {unit(m.unit)} en bodega · {num(m.perBatch, 3)} por cochada</span></div>
+                  <div className="capacity-bar"><span style={{ width: `${Math.min(100, (m.batches / max) * 100)}%` }} /></div>
+                  <div className="capacity-val mono">{num(m.batches, 0)}</div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      ))}
       <Card className="mt" flush title="Por semana"><Table columns={columns} rows={weeks} rowKey={(w) => w.label} /></Card>
     </>
   );

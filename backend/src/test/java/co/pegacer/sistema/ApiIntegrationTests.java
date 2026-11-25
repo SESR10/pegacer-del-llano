@@ -547,6 +547,62 @@ class ApiIntegrationTests {
         assertThat(q("SELECT count(*) FROM alerts WHERE batch_id = ?", Integer.class, id)).isZero();
     }
 
+    // ---------- Fase 11: capacidad, despachos y desperdicios ----------
+
+    @Test
+    void capacityFindsLimitingMaterial() throws Exception {
+        u("UPDATE products SET stock = 60 WHERE code = 'MP-CEM'");
+        u("UPDATE products SET stock = 8 WHERE code = 'MP-ARE'");
+        u("UPDATE products SET stock = 40 WHERE code = 'MP-QUI'");
+        u("UPDATE products SET stock = 5000 WHERE code = 'IN-BOL'");
+        mvc.perform(as("gerencia", get("/api/production/capacity")))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.data[0].batches").value(15))
+           .andExpect(jsonPath("$.data[0].limitingProduct").value("Arena lavada"))
+           .andExpect(jsonPath("$.data[0].estimatedBags").value(690))
+           .andExpect(jsonPath("$.data[0].materials[0].batches").value(20))
+           .andExpect(jsonPath("$.data[0].materials[2].batches").value(22));
+    }
+
+    @Test
+    void dispatchDiscountsFinishedGoods() throws Exception {
+        BigDecimal pt = stock("PT-PEG");
+        String req = "{\"customerName\":\"Ferretería El Llano\",\"items\":[{\"productId\":" + productId("PT-PEG") + ",\"quantity\":20}]}";
+        String body = mvc.perform(as("inventario", post("/api/dispatches")).content(req))
+           .andExpect(status().isCreated())
+           .andExpect(jsonPath("$.data.code").value(org.hamcrest.Matchers.matchesPattern("D-\\d{4}-0001")))
+           .andExpect(jsonPath("$.data.items[0].quantity").value(20))
+           .andReturn().getResponse().getContentAsString();
+        assertThat(stock("PT-PEG")).isEqualByComparingTo(pt.subtract(new BigDecimal("20")));
+        long id = json.readTree(body).at("/data/id").asLong();
+        assertThat(q("SELECT count(*) FROM inventory_movements WHERE reference_type = 'DESPACHO' AND reference_id = ?", Integer.class, id)).isEqualTo(1);
+        // Solo producto terminado, y con stock suficiente
+        mvc.perform(as("inventario", post("/api/dispatches")).content(req.replace("" + productId("PT-PEG"), "" + productId("MP-CEM"))))
+           .andExpect(status().isBadRequest())
+           .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.startsWith("Solo se despacha producto terminado.")));
+        mvc.perform(as("inventario", post("/api/dispatches")).content(req.replace("\"quantity\":20", "\"quantity\":999999")))
+           .andExpect(status().isBadRequest())
+           .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.startsWith("No hay suficiente")));
+        mvc.perform(as("compras", post("/api/dispatches")).content(req)).andExpect(status().isForbidden());
+    }
+
+    @Test
+    void wasteDiscountsInventoryAndKeepsReason() throws Exception {
+        BigDecimal cem = stock("MP-CEM");
+        String req = "{\"productId\":" + productId("MP-CEM") + ",\"quantity\":0.25,\"reason\":\"Derrame\",\"notes\":\"Bulto roto en bodega\"}";
+        mvc.perform(as("produccion", post("/api/waste")).content(req))
+           .andExpect(status().isCreated())
+           .andExpect(jsonPath("$.data.reason").value("Derrame"))
+           .andExpect(jsonPath("$.data.user").value("Jefe de Producción DEMO"));
+        assertThat(stock("MP-CEM")).isEqualByComparingTo(cem.subtract(new BigDecimal("0.25")));
+        assertThat(q("SELECT notes FROM inventory_movements WHERE movement_type = 'DESPERDICIO' ORDER BY id DESC LIMIT 1", String.class))
+                .isEqualTo("Derrame — Bulto roto en bodega");
+        mvc.perform(as("produccion", post("/api/waste")).content(req.replace("\"reason\":\"Derrame\"", "\"reason\":\" \"")))
+           .andExpect(status().isBadRequest())
+           .andExpect(jsonPath("$.message").value("Escriba el motivo."));
+        mvc.perform(as("gerencia", post("/api/waste")).content(req)).andExpect(status().isForbidden());
+    }
+
     static String newProduct(String code) {
         return "{\"code\":\"" + code + "\",\"name\":\"Pegante de prueba\",\"category\":\"PRODUCTO_TERMINADO\","
                 + "\"unit\":\"BOLSA\",\"minStock\":5,\"initialStock\":10}";

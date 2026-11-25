@@ -9,11 +9,13 @@
 | Frontend (Fase 5) | React + Vite + TypeScript. Diseño profesional y responsive: en el celular hay barra inferior, menú deslizable, tablas convertidas en tarjetas y formularios en hoja inferior. |
 | Pantallas conectadas (Fase 6) | Todas las pantallas leen los datos reales del servidor (inventario, kardex, fórmulas, cochadas, compras, despachos, desperdicios, proveedores, alertas). Las alertas se pueden marcar como atendidas. |
 | Registro de cochadas (Fase 10) | Formulario y endpoint `POST /api/batches`: descuenta la materia prima, suma las bolsas al producto terminado, calcula la variación frente a la fórmula y crea alertas de consumo fuera de rango y de producción baja. Código consecutivo por año (C-2026-0001). Si un material no alcanza, no se guarda nada. |
-| Pruebas | 42 pruebas automáticas (`mvn test`), todas pasan. |
+| Pruebas | 45 pruebas automáticas (`mvn test`), todas pasan. |
 | Productos (Fase 7) | Crear, editar y eliminar productos desde la pantalla Productos (roles Administrador e Inventario). Al crear se puede dar un stock inicial, que queda en el kardex. Un producto con historial se desactiva en lugar de borrarse. |
 | Inventario (Fase 8) | Ajustes de inventario (sumar o restar) con motivo obligatorio y vista previa del stock que quedará. Quedan en el kardex y en la auditoría. |
 | Fórmulas (Fase 9) | Crear y editar fórmulas desde la pantalla Fórmulas (Administrador y Producción). Cada cambio se guarda como **versión nueva** y la anterior queda en el historial: las cochadas ya registradas conservan su receta. Se puede volver a una versión anterior. La tolerancia de consumo se cambia en la misma pantalla. |
-| Otros formularios (Fases 11–13) | Pendiente: compras, despachos y desperdicios. |
+| Producción (Fase 11) | La pantalla Producción calcula **cuántas cochadas completas se pueden fabricar** con el inventario actual por cada fórmula activa, cuál material limita y cuántas bolsas saldrían (`GET /api/production/capacity`). |
+| Despachos y desperdicios (Fase 11) | Registrar despachos de producto terminado (uno o varios productos, código D-2026-0001) y desperdicios con motivo (opcional: cochada asociada). Ambos descuentan del inventario, quedan en el kardex y en la auditoría. Roles: Administrador, Inventario y Producción. |
+| Otros formularios (Fase 12) | Pendiente: compras y proveedores. |
 
 ## Permisos por rol
 
@@ -22,8 +24,8 @@ Todos los usuarios con sesión pueden **consultar** todo. Para **modificar**:
 | Rol | Puede |
 |---|---|
 | Administrador | Todo, incluidos usuarios y auditoría |
-| Producción | Cochadas y fórmulas (Fases 9–10), atender alertas |
-| Inventario | Productos, ajustes de inventario, desperdicios, atender alertas |
+| Producción | Cochadas, fórmulas, despachos y desperdicios, atender alertas |
+| Inventario | Productos, ajustes de inventario, despachos y desperdicios, atender alertas |
 | Compras | Proveedores y compras, atender alertas |
 | Gerencia | Solo consulta y reportes |
 
@@ -38,5 +40,5 @@ Todos los usuarios con sesión pueden **consultar** todo. Para **modificar**:
 
 ## Siguiente paso
 
-Vista de producción (Fase 11) y registro de compras (Fase 12).
+Registro de compras y proveedores (Fase 12).
 Antes de usarlo con datos reales: perfil de producción, usuarios reales y copias de seguridad de PostgreSQL.

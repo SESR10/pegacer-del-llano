@@ -4,6 +4,7 @@ import co.pegacer.sistema.dto.*;
 import co.pegacer.sistema.security.Roles;
 import co.pegacer.sistema.service.BatchService;
 import co.pegacer.sistema.service.FormulaService;
+import co.pegacer.sistema.service.OperationsService;
 import co.pegacer.sistema.service.ProductionQueryService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -22,9 +23,12 @@ public class ProductionController {
     private final ProductionQueryService q;
     private final BatchService batchService;
     private final FormulaService formulaService;
+    private final OperationsService ops;
 
-    public ProductionController(ProductionQueryService q, BatchService batchService, FormulaService formulaService) {
+    public ProductionController(ProductionQueryService q, BatchService batchService, FormulaService formulaService,
+                                OperationsService ops) {
         this.q = q;
+        this.ops = ops;
         this.batchService = batchService;
         this.formulaService = formulaService;
     }
@@ -68,6 +72,26 @@ public class ProductionController {
 
     @GetMapping("/batches/{id}")
     public ApiResponse<BatchDto> batch(@PathVariable Long id) { return ApiResponse.ok(q.batch(id)); }
+
+    @Operation(summary = "Capacidad de producción", description = "Cochadas posibles con el inventario actual y recurso limitante, por fórmula activa.")
+    @GetMapping("/production/capacity")
+    public ApiResponse<List<CapacityDto>> capacity() { return ApiResponse.ok(ops.capacity()); }
+
+    @Operation(summary = "Registrar despacho de producto terminado")
+    @PostMapping("/dispatches")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize(Roles.DESPACHOS)
+    public ApiResponse<DispatchDto> dispatch(@Valid @RequestBody DispatchRequest req) {
+        return ApiResponse.ok("Despacho registrado.", ops.dispatch(req));
+    }
+
+    @Operation(summary = "Registrar desperdicio", description = "Descuenta el material del inventario.")
+    @PostMapping("/waste")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize(Roles.DESPERDICIOS)
+    public ApiResponse<WasteDto> registerWaste(@Valid @RequestBody WasteRequest req) {
+        return ApiResponse.ok("Desperdicio registrado.", ops.registerWaste(req));
+    }
 
     @GetMapping("/purchases")
     public ApiResponse<PageDto<PurchaseDto>> purchases(@RequestParam(defaultValue = "0") int page,

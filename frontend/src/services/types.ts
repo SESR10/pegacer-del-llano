@@ -59,3 +59,6 @@ export interface FormulaInput {
   productId: number; name: string; expectedBags: number; minBags: number; maxBags: number; bagWeightKg: number;
   items: { productId: number; quantity: number }[];
 }
+
+export interface DispatchInput { customerName: string; dispatchedAt?: string | null; items: { productId: number; quantity: number }[]; }
+export interface WasteInput { productId: number; quantity: number; reason: string; notes?: string | null; batchId?: number | null; recordedAt?: string | null; }
