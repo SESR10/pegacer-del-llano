@@ -20,6 +20,15 @@ public class PurchaseItem {
     @Column(name = "unit_cost", precision = 14, scale = 2)
     private BigDecimal unitCost;
 
+    protected PurchaseItem() { }
+
+    public PurchaseItem(Purchase purchase, Product product, BigDecimal quantity, BigDecimal unitCost) {
+        this.purchase = purchase;
+        this.product = product;
+        this.quantity = quantity;
+        this.unitCost = unitCost;
+    }
+
     public Long getId() { return id; }
     public Purchase getPurchase() { return purchase; }
     public Product getProduct() { return product; }

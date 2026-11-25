@@ -525,3 +525,11 @@ a { color: inherit; }
   .capacity-row { grid-template-columns: minmax(0, 1fr) 44px; padding: 8px 6px; }
   .capacity-bar { grid-column: 1 / -1; grid-row: 2; }
 }
+
+/* Fase 12: compras */
+.line-item.purchase { grid-template-columns: minmax(0, 1fr) 150px 150px auto; }
+.row-actions { display: flex; gap: 6px; justify-content: flex-end; }
+@media (max-width: 640px) {
+  .line-item.purchase { grid-template-columns: 1fr 1fr auto; }
+  .line-item.purchase select { grid-column: 1 / -1; }
+}

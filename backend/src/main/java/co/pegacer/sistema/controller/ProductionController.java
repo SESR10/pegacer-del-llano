@@ -6,6 +6,7 @@ import co.pegacer.sistema.service.BatchService;
 import co.pegacer.sistema.service.FormulaService;
 import co.pegacer.sistema.service.OperationsService;
 import co.pegacer.sistema.service.ProductionQueryService;
+import co.pegacer.sistema.service.PurchaseService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -15,7 +16,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/** Producción y movimientos de negocio. Las cochadas ya se registran (Fase 10); compras y despachos llegan en sus fases. */
+/** Producción y movimientos de negocio. Cochadas (Fase 10), despachos y desperdicios (Fase 11) y compras (Fase 12). */
 @Tag(name = "Producción, compras y salidas (consulta)")
 @RestController
 @RequestMapping("/api")
@@ -24,10 +25,12 @@ public class ProductionController {
     private final BatchService batchService;
     private final FormulaService formulaService;
     private final OperationsService ops;
+    private final PurchaseService purchaseService;
 
     public ProductionController(ProductionQueryService q, BatchService batchService, FormulaService formulaService,
-                                OperationsService ops) {
+                                OperationsService ops, PurchaseService purchaseService) {
         this.q = q;
+        this.purchaseService = purchaseService;
         this.ops = ops;
         this.batchService = batchService;
         this.formulaService = formulaService;
@@ -91,6 +94,14 @@ public class ProductionController {
     @PreAuthorize(Roles.DESPERDICIOS)
     public ApiResponse<WasteDto> registerWaste(@Valid @RequestBody WasteRequest req) {
         return ApiResponse.ok("Desperdicio registrado.", ops.registerWaste(req));
+    }
+
+    @Operation(summary = "Registrar compra", description = "Suma cada producto al inventario (ENTRADA_COMPRA) y actualiza su costo si se envía.")
+    @PostMapping("/purchases")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize(Roles.COMPRAS)
+    public ApiResponse<PurchaseDto> registerPurchase(@Valid @RequestBody PurchaseRequest req) {
+        return ApiResponse.ok("Compra registrada.", purchaseService.register(req));
     }
 
     @GetMapping("/purchases")

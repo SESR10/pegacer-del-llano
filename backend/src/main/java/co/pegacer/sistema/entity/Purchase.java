@@ -29,6 +29,16 @@ public class Purchase {
     @OrderBy("id")
     private List<PurchaseItem> items = new ArrayList<>();
 
+    protected Purchase() { }
+
+    public Purchase(String code, Supplier supplier, Instant purchasedAt, String invoiceNumber, AppUser user) {
+        this.code = code;
+        this.supplier = supplier;
+        this.purchasedAt = purchasedAt;
+        this.invoiceNumber = invoiceNumber;
+        this.user = user;
+    }
+
     public Long getId() { return id; }
     public String getCode() { return code; }
     public Supplier getSupplier() { return supplier; }

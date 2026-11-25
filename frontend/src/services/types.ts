@@ -12,10 +12,10 @@ export interface Batch {
   formulaId?: number; notes?: string | null;
 }
 export interface Movement { id: number; productId: number; type: string; quantity: number; before: number; after: number; refType: string | null; at: string; user?: string | null; notes?: string | null; }
-export interface Purchase { code: string; at: string; supplier: string; invoice: string; productId: number; quantity: number; }
+export interface Purchase { code: string; at: string; supplier: string; supplierId?: number; invoice: string; productId: number; quantity: number; unitCost?: number | null; }
 export interface Dispatch { code: string; at: string; customer: string; productId: number; quantity: number; }
 export interface Waste { productId: number; quantity: number; reason: string; at: string; }
-export interface Supplier { nit: string; name: string; phone: string; city: string; }
+export interface Supplier { id: number; nit: string; name: string; phone: string; city: string; email?: string | null; active?: boolean; }
 export interface Alert { id: number; type: string; severity: 'ALTA' | 'MEDIA' | 'INFO'; message: string; at: string; }
 
 export interface Snapshot {
@@ -62,3 +62,5 @@ export interface FormulaInput {
 
 export interface DispatchInput { customerName: string; dispatchedAt?: string | null; items: { productId: number; quantity: number }[]; }
 export interface WasteInput { productId: number; quantity: number; reason: string; notes?: string | null; batchId?: number | null; recordedAt?: string | null; }
+export interface PurchaseInput { supplierId: number; invoiceNumber?: string | null; purchasedAt?: string | null; items: { productId: number; quantity: number; unitCost?: number | null }[]; }
+export interface SupplierInput { nit: string; name: string; phone?: string | null; email?: string | null; city?: string | null; active?: boolean; }

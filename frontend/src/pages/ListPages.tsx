@@ -1,48 +1,85 @@
 import { useState } from 'react';
-import { LuAlertTriangle, LuFactory, LuMinusCircle, LuTruck } from 'react-icons/lu';
+import { LuAlertTriangle, LuFactory, LuMinusCircle, LuPencil, LuPlus, LuShoppingCart, LuTruck } from 'react-icons/lu';
 import { useData } from '../services/store';
 import { useAuth } from '../services/auth';
 import type { Dispatch, Purchase, Supplier, Waste } from '../services/types';
 import { Card, Chip, Kpi, PageHead, Table, type Column } from '../components/ui';
 import DispatchForm from '../components/DispatchForm';
 import WasteForm from '../components/WasteForm';
-import { date, dateTime, num, unit } from '../utils/format';
+import PurchaseForm from '../components/PurchaseForm';
+import SupplierForm from '../components/SupplierForm';
+import { date, dateTime, money, num, unit } from '../utils/format';
 import { can, capacity, productionByDay, recentBatches } from '../utils/metrics';
 import InventarioPage from './InventarioPage';
 
 export function ComprasPage() {
   const data = useData();
+  const { user } = useAuth();
+  const [form, setForm] = useState(false);
   const product = (id: number) => data.products.find((p) => p.id === id);
+  const since = Date.now() - 30 * 86_400_000;
+  const recent = data.purchases.filter((p) => new Date(p.at).getTime() >= since);
+  const value = recent.reduce((s, p) => s + p.quantity * (p.unitCost ?? product(p.productId)?.unitCost ?? 0), 0);
   const columns: Column<Purchase>[] = [
     { key: 'product', label: 'Producto', primary: true, render: (p) => <span className="strong">{product(p.productId)?.name}</span> },
     { key: 'code', label: 'Orden', render: (p) => <span className="mono">{p.code}</span> },
     { key: 'at', label: 'Fecha', render: (p) => date(p.at) },
     { key: 'supplier', label: 'Proveedor', render: (p) => p.supplier },
     { key: 'qty', label: 'Cantidad', num: true, render: (p) => <>{num(p.quantity)} <span className="muted">{unit(product(p.productId)?.unit ?? '')}</span></> },
+    { key: 'cost', label: 'Costo unitario', num: true, hideSm: true, render: (p) => (p.unitCost != null ? money(p.unitCost) : <span className="muted">—</span>) },
     { key: 'invoice', label: 'Factura', hideSm: true, render: (p) => p.invoice },
   ];
   return (
     <>
-      <PageHead title="Compras" subtitle="Entradas de materia prima e insumos. Cada compra suma al inventario y queda en el kardex." />
-      <div className="notice">El formulario para registrar compras llega en la Fase 12.</div>
-      <Card flush><Table columns={columns} rows={data.purchases} rowKey={(p) => `${p.code}-${p.productId}`} empty="No hay compras registradas." /></Card>
+      <PageHead title="Compras" subtitle="Entradas de materia prima e insumos. Cada compra suma al inventario y queda en el kardex."
+        actions={can(user?.role, 'compras') && <button type="button" className="btn-primary" onClick={() => setForm(true)}><LuShoppingCart /> Registrar compra</button>} />
+      <PurchaseForm open={form} onClose={() => setForm(false)} />
+      <div className="grid kpis small-kpis">
+        <Kpi label="Compras (30 días)" value={new Set(recent.map((p) => p.code)).size} />
+        <Kpi label="Valor (30 días)" value={value ? money(value) : '—'} sub="según costo registrado" />
+        <Kpi label="Proveedores activos" value={data.suppliers.filter((s) => s.active !== false).length} />
+      </div>
+      <Card className="mt" flush><Table columns={columns} rows={data.purchases} rowKey={(p) => `${p.code}-${p.productId}`} empty="No hay compras registradas." pageSize={25} /></Card>
     </>
   );
 }
 
 export function ProveedoresPage() {
   const data = useData();
+  const { user } = useAuth();
+  const allowed = can(user?.role, 'compras');
+  const [editing, setEditing] = useState<Supplier | null | undefined>(undefined);
+  const [buyFrom, setBuyFrom] = useState<number | undefined>(undefined);
+  const stats = (s: Supplier) => {
+    const rows = data.purchases.filter((p) => (p.supplierId ?? -1) === s.id || p.supplier === s.name);
+    const last = rows.reduce<string | null>((m, p) => (!m || p.at > m ? p.at : m), null);
+    return { n: new Set(rows.map((p) => p.code)).size, last };
+  };
   const columns: Column<Supplier>[] = [
-    { key: 'name', label: 'Nombre', primary: true, render: (s) => <span className="strong">{s.name}</span> },
+    { key: 'name', label: 'Nombre', primary: true, render: (s) => <span className="strong">{s.name} {s.active === false && <Chip tone="neutral">Inactivo</Chip>}</span> },
     { key: 'nit', label: 'NIT', render: (s) => <span className="mono">{s.nit}</span> },
     { key: 'city', label: 'Ciudad', render: (s) => s.city },
-    { key: 'phone', label: 'Teléfono', render: (s) => s.phone },
-    { key: 'n', label: 'Compras', num: true, render: (s) => data.purchases.filter((p) => p.supplier === s.name).length },
+    { key: 'phone', label: 'Teléfono', render: (s) => (s.phone && s.phone !== '—' ? <a href={`tel:${s.phone}`}>{s.phone}</a> : '—') },
+    { key: 'n', label: 'Compras', num: true, render: (s) => stats(s).n },
+    { key: 'last', label: 'Última compra', hideSm: true, render: (s) => { const l = stats(s).last; return l ? date(l) : '—'; } },
   ];
+  if (allowed) {
+    columns.push({ key: 'edit', label: '', width: 96, action: true, render: (s) => (
+      <div className="row-actions">
+        {s.active !== false && <button type="button" className="icon-btn sm" aria-label={`Comprar a ${s.name}`} title="Registrar compra"
+          onClick={(e) => { e.stopPropagation(); setBuyFrom(s.id); }}><LuShoppingCart /></button>}
+        <button type="button" className="icon-btn sm" aria-label={`Editar ${s.name}`} title="Editar"
+          onClick={(e) => { e.stopPropagation(); setEditing(s); }}><LuPencil /></button>
+      </div>
+    ) });
+  }
   return (
     <>
-      <PageHead title="Proveedores" subtitle="Proveedores de cemento, arena, químicos y empaques." />
-      <Card flush><Table columns={columns} rows={data.suppliers} rowKey={(s) => s.nit} empty="No hay proveedores registrados." /></Card>
+      <PageHead title="Proveedores" subtitle="Proveedores de cemento, arena, químicos y empaques."
+        actions={allowed && <button type="button" className="btn-primary" onClick={() => setEditing(null)}><LuPlus /> Nuevo proveedor</button>} />
+      <SupplierForm open={editing !== undefined} supplier={editing ?? null} onClose={() => setEditing(undefined)} />
+      <PurchaseForm open={buyFrom !== undefined} supplierId={buyFrom} onClose={() => setBuyFrom(undefined)} />
+      <Card flush><Table columns={columns} rows={data.suppliers} rowKey={(s) => s.id} empty="No hay proveedores registrados." /></Card>
     </>
   );
 }
