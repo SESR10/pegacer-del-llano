@@ -13,6 +13,8 @@ import EnConstruccionPage from './pages/EnConstruccionPage';
 import ReportesPage from './pages/ReportesPage';
 import UsuariosPage from './pages/UsuariosPage';
 import ConfiguracionPage from './pages/ConfiguracionPage';
+import PrivacidadPage from './pages/PrivacidadPage';
+import { AutorizacionDatos, PoliticaPublica, useHash } from './pages/LegalScreens';
 import {
   ComprasPage, DesperdiciosPage, MateriasPrimasPage, ProduccionPage, ProductosPage, ProductoTerminadoPage, ProveedoresPage,
 } from './pages/ListPages';
@@ -27,8 +29,11 @@ export default function App() {
 
 /** Sin sesión se muestra el login (excepto en la compilación de demostración, que no tiene backend). */
 function Gate() {
-  const { user } = useAuth();
-  if (LOGIN_REQUIRED && !user) return <LoginPage />;
+  const { user, privacyPending } = useAuth();
+  const hash = useHash();
+  if (LOGIN_REQUIRED && !user) return hash.startsWith('#/privacidad') ? <PoliticaPublica /> : <LoginPage />;
+  // Ley 1581 de 2012: antes de usar el sistema, cada usuario autoriza el tratamiento de sus datos.
+  if (LOGIN_REQUIRED && privacyPending) return <AutorizacionDatos />;
   return (
     <DataProvider key={user?.id ?? 'demo'}>
     <ToastProvider>
@@ -50,6 +55,7 @@ function Gate() {
           <Route path="reportes" element={<ReportesPage />} />
           <Route path="usuarios" element={<UsuariosPage />} />
           <Route path="configuracion" element={<ConfiguracionPage />} />
+          <Route path="privacidad" element={<PrivacidadPage />} />
           <Route path="*" element={<EnConstruccionPage />} />
         </Route>
       </Routes>

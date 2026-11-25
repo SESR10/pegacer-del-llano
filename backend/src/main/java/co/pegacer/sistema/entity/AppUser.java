@@ -27,6 +27,11 @@ public class AppUser {
     private boolean demo;
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
+    /** Ley 1581: cuándo aceptó la Política de Tratamiento de Datos y qué versión. */
+    @Column(name = "privacy_accepted_at")
+    private Instant privacyAcceptedAt;
+    @Column(name = "privacy_version", length = 20)
+    private String privacyVersion;
 
     @PrePersist
     void prePersist() { if (createdAt == null) createdAt = Instant.now(); }
@@ -46,4 +51,7 @@ public class AppUser {
     public void setActive(boolean active) { this.active = active; }
     public boolean isDemo() { return demo; }
     public Instant getCreatedAt() { return createdAt; }
+    public Instant getPrivacyAcceptedAt() { return privacyAcceptedAt; }
+    public String getPrivacyVersion() { return privacyVersion; }
+    public void acceptPrivacy(String version, Instant at) { this.privacyVersion = version; this.privacyAcceptedAt = at; }
 }

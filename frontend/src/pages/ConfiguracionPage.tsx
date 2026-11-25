@@ -21,7 +21,7 @@ const ACTION_LABEL: Record<string, string> = {
   REGISTRAR_COMPRA: 'Registró compra', AJUSTE_INVENTARIO: 'Ajustó inventario', CREAR_PRODUCTO: 'Creó producto', EDITAR_PRODUCTO: 'Editó producto',
   ELIMINAR_PRODUCTO: 'Eliminó producto', DESACTIVAR_PRODUCTO: 'Desactivó producto', CREAR_FORMULA: 'Creó fórmula', ACTIVAR_FORMULA: 'Activó fórmula',
   CREAR_PROVEEDOR: 'Creó proveedor', EDITAR_PROVEEDOR: 'Editó proveedor', RESOLVER_ALERTA: 'Atendió alerta', RESOLVER_ALERTAS: 'Atendió alertas',
-  CAMBIAR_PARAMETRO: 'Cambió parámetro', CREAR_USUARIO: 'Creó usuario', EDITAR_USUARIO: 'Editó usuario', CAMBIAR_CONTRASENA: 'Cambió su contraseña',
+  CAMBIAR_PARAMETRO: 'Cambió parámetro', CREAR_USUARIO: 'Creó usuario', EDITAR_USUARIO: 'Editó usuario', CAMBIAR_CONTRASENA: 'Cambió su contraseña', ACEPTAR_POLITICA_DATOS: 'Aceptó la política de datos',
 };
 
 /** Configuración (Fase 15): parámetros del sistema, cambio de contraseña propia y auditoría (Administrador). */

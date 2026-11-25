@@ -1,7 +1,7 @@
 import type { IconType } from 'react-icons';
 import {
   LuLayoutDashboard, LuFactory, LuBarChart3, LuFlaskConical, LuWarehouse, LuPackageCheck, LuTrash2,
-  LuPackage, LuMountain, LuShoppingCart, LuTruck, LuBell, LuFileBarChart, LuUsers, LuSettings,
+  LuPackage, LuMountain, LuShoppingCart, LuTruck, LuBell, LuFileBarChart, LuUsers, LuSettings, LuShieldCheck,
 } from 'react-icons/lu';
 
 export interface NavItem { path: string; label: string; icon: IconType; phase?: number; }
@@ -30,6 +30,7 @@ export const NAV: NavGroup[] = [
   { title: 'Sistema', items: [
     { path: '/usuarios', label: 'Usuarios', icon: LuUsers },
     { path: '/configuracion', label: 'Configuración', icon: LuSettings },
+    { path: '/privacidad', label: 'Privacidad y datos', icon: LuShieldCheck },
   ] },
 ];
 

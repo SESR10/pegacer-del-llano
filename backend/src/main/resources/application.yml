@@ -25,6 +25,14 @@ app:
   jwt:
     secret: ${JWT_SECRET:cambiar-este-secreto-de-desarrollo-minimo-32-caracteres}
     expiration-minutes: ${JWT_EXPIRATION_MINUTES:480}
+  # Límite de intentos de inicio de sesión (ver security/LoginAttempts.java).
+  login:
+    max-por-usuario: ${LOGIN_MAX_POR_USUARIO:5}
+    max-por-ip: ${LOGIN_MAX_POR_IP:20}
+    bloqueo-minutos: ${LOGIN_BLOQUEO_MINUTOS:15}
+  # Versión vigente de la Política de Tratamiento de Datos (frontend/src/legal). Si se cambia la política,
+  # cambie también esta fecha: todos los usuarios deberán aceptarla de nuevo al entrar.
+  privacidad.version: ${PRIVACIDAD_VERSION:2026-11-25}
   # Solo perfil prod, y solo si la base no tiene usuarios: crea el primer Administrador.
   admin:
     usuario: ${ADMIN_USUARIO:}

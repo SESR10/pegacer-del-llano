@@ -152,3 +152,10 @@ test('una dirección que no existe muestra página no encontrada', async ({ page
   await page.goto('./#/no-existe');
   await expect(page.getByText('Página no encontrada')).toBeVisible();
 });
+
+test('la política de tratamiento de datos se puede consultar', async ({ page }) => {
+  await go(page, '/privacidad');
+  await expect(page.getByRole('heading', { name: 'Privacidad y datos' }).first()).toBeVisible();
+  await expect(page.getByRole('heading', { name: '5. Derechos del titular' })).toBeVisible();
+  await expect(page.getByText('no usa cookies', { exact: false })).toBeVisible();
+});

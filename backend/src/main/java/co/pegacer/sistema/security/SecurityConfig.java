@@ -17,6 +17,8 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
+import org.springframework.security.web.header.writers.StaticHeadersWriter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -33,6 +35,25 @@ import java.util.List;
 @EnableMethodSecurity
 public class SecurityConfig {
 
+    /**
+     * Política de contenido: el navegador solo ejecuta código y carga recursos del propio sistema.
+     * Si alguien lograra inyectar HTML, no podría correr scripts externos ni enviar datos a otro sitio.
+     * 'unsafe-inline' en estilos es necesario porque React pone estilos en línea (style="...").
+     */
+    static final String CSP = String.join("; ",
+            "default-src 'self'",
+            "script-src 'self'",
+            "style-src 'self' 'unsafe-inline'",
+            "img-src 'self' data: blob:",
+            "font-src 'self' data:",
+            "connect-src 'self'",
+            "object-src 'none'",
+            "base-uri 'self'",
+            "form-action 'self'",
+            "frame-ancestors 'none'");
+
+    static final String PERMISSIONS = "camera=(), microphone=(), geolocation=(), payment=(), usb=()";
+
     @Bean
     SecurityFilterChain filterChain(HttpSecurity http, ObjectMapper mapper, JwtAuthFilter jwtFilter) throws Exception {
         http.csrf(c -> c.disable())
@@ -45,6 +66,14 @@ public class SecurityConfig {
                 .requestMatchers("/api/**").authenticated()
                 // Fuera de /api solo están los archivos de la pantalla (index.html, /assets/**).
                 .anyRequest().permitAll())
+            // Cabeceras de seguridad (OWASP): HSTS, no se puede meter en un marco, CSP, sin "adivinar" tipos.
+            .headers(h -> h
+                .contentSecurityPolicy(c -> c.policyDirectives(CSP))
+                .frameOptions(f -> f.deny())
+                .httpStrictTransportSecurity(t -> t.includeSubDomains(true).maxAgeInSeconds(31_536_000))
+                .referrerPolicy(r -> r.policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.SAME_ORIGIN))
+                .addHeaderWriter(new StaticHeadersWriter("Permissions-Policy", PERMISSIONS))
+                .addHeaderWriter(new StaticHeadersWriter("Cross-Origin-Opener-Policy", "same-origin")))
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
             .exceptionHandling(e -> e
                 .authenticationEntryPoint((req, res, ex) ->

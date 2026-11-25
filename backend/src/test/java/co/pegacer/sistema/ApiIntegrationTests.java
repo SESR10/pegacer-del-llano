@@ -3,6 +3,8 @@ package co.pegacer.sistema;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityManager;
+import co.pegacer.sistema.security.LoginAttempts;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -38,6 +40,11 @@ class ApiIntegrationTests {
     @Autowired ObjectMapper json;
     @Autowired JdbcTemplate jdbc;
     @Autowired EntityManager em;
+    @Autowired LoginAttempts attempts;
+
+    /** Los intentos fallidos se guardan en memoria: cada prueba empieza sin bloqueos. */
+    @BeforeEach
+    void resetLoginAttempts() { attempts.reset(); }
 
     /** Las pruebas leen con SQL directo: primero se envían a la base los cambios pendientes de JPA. */
     <T> T q(String sql, Class<T> type, Object... args) {
@@ -107,6 +114,91 @@ class ApiIntegrationTests {
                .andExpect(jsonPath("$.success").value(false))
                .andExpect(jsonPath("$.message").value("Usuario o contraseña incorrectos."));
         }
+    }
+
+    // ---------- Seguridad: límite de intentos y cabeceras ----------
+
+    @Test
+    void fiveFailedLoginsLockTheUserEvenWithTheRightPassword() throws Exception {
+        String bad = "{\"username\":\"compras\",\"password\":\"mala\"}";
+        for (int i = 0; i < 5; i++) {
+            mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(bad))
+               .andExpect(status().isUnauthorized());
+        }
+        mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"COMPRAS\",\"password\":\"" + PASSWORD + "\"}"))
+           .andExpect(status().isTooManyRequests())
+           .andExpect(jsonPath("$.message").value("Demasiados intentos fallidos. Espere 15 minutos e intente de nuevo."));
+        // Otro usuario desde la misma IP sí puede entrar.
+        token("admin");
+    }
+
+    @Test
+    void successfulLoginClearsFailedAttempts() throws Exception {
+        String bad = "{\"username\":\"compras\",\"password\":\"mala\"}";
+        for (int i = 0; i < 4; i++) {
+            mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(bad));
+        }
+        token("compras");
+        for (int i = 0; i < 4; i++) {
+            mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(bad))
+               .andExpect(status().isUnauthorized());
+        }
+        token("compras");
+    }
+
+    @Test
+    void manyFailuresFromOneIpLockThatIp() throws Exception {
+        for (int i = 0; i < 20; i++) {
+            mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"username\":\"inventado" + i + "\",\"password\":\"mala\"}"));
+        }
+        mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"admin\",\"password\":\"" + PASSWORD + "\"}"))
+           .andExpect(status().isTooManyRequests());
+        mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .with(r -> { r.setRemoteAddr("10.0.0.9"); return r; })
+                        .content("{\"username\":\"admin\",\"password\":\"" + PASSWORD + "\"}"))
+           .andExpect(status().isOk());
+    }
+
+    @Test
+    void securityHeadersAreSent() throws Exception {
+        mvc.perform(get("/api/health").secure(true))
+           .andExpect(header().string("Content-Security-Policy", org.hamcrest.Matchers.containsString("default-src 'self'")))
+           .andExpect(header().string("Content-Security-Policy", org.hamcrest.Matchers.containsString("frame-ancestors 'none'")))
+           .andExpect(header().string("X-Frame-Options", "DENY"))
+           .andExpect(header().string("X-Content-Type-Options", "nosniff"))
+           .andExpect(header().string("Strict-Transport-Security", "max-age=31536000 ; includeSubDomains"))
+           .andExpect(header().string("Referrer-Policy", "same-origin"))
+           .andExpect(header().string("Permissions-Policy", org.hamcrest.Matchers.containsString("camera=()")));
+    }
+
+    // ---------- Ley 1581 de 2012: autorización de tratamiento de datos ----------
+
+    @Test
+    void privacyMustBeAcceptedOnceAndIsAudited() throws Exception {
+        u("UPDATE users SET privacy_accepted_at = NULL, privacy_version = NULL WHERE username = 'gerencia'");
+        mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"gerencia\",\"password\":\"" + PASSWORD + "\"}"))
+           .andExpect(jsonPath("$.data.privacyPending").value(true));
+        mvc.perform(as("gerencia", get("/api/auth/privacy")))
+           .andExpect(jsonPath("$.data.pending").value(true))
+           .andExpect(jsonPath("$.data.version").value("2026-11-25"));
+        mvc.perform(as("gerencia", post("/api/auth/privacy/accept")))
+           .andExpect(status().isOk())
+           .andExpect(jsonPath("$.data.pending").value(false))
+           .andExpect(jsonPath("$.data.acceptedAt").isNotEmpty());
+        mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"gerencia\",\"password\":\"" + PASSWORD + "\"}"))
+           .andExpect(jsonPath("$.data.privacyPending").value(false));
+        assertThat(q("SELECT privacy_version FROM users WHERE username = 'gerencia'", String.class)).isEqualTo("2026-11-25");
+        assertThat(q("SELECT count(*) FROM audit_log WHERE action = 'ACEPTAR_POLITICA_DATOS'", Integer.class)).isEqualTo(1);
+    }
+
+    @Test
+    void acceptingPrivacyNeedsSession() throws Exception {
+        mvc.perform(post("/api/auth/privacy/accept")).andExpect(status().isUnauthorized());
     }
 
     @Test
